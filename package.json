@@ -1,0 +1,27 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@primevue/themes": "^4.0.2",
+    "nuxt": "^3.12.4",
+    "pinia": "^2.2.0",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.0.2",
+    "tailwindcss-primeui": "^0.3.4",
+    "vue": "latest"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "@pinia/nuxt": "^0.5.2",
+    "@primevue/nuxt-module": "^4.0.2",
+    "nuxt-lodash": "^2.5.3"
+  }
+}
