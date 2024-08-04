@@ -1,15 +1,19 @@
 <script setup lang="ts">
-//import { useLedgerStore } from "../stores/ledger"
 
 const route = useRoute();
 const ledger = useLedgerStore();
-window.ledger = ledger;
+
+const recorderVisible = ref(false);
+
+watch(ledger.entries, () => recorderVisible.value = false);
 </script>
 
 <template>
-  <div>
-    <h1>Nuxt Routing set up successfully!</h1>
-    <p>Current route: {{ route.path }}</p>
-    <a href="https://nuxt.com/docs/getting-started/routing" target="_blank">Learn more about Nuxt Routing</a>
+  <LedgerTable />
+  <Drawer v-model:visible="recorderVisible" header="Record Progress" position="bottom" class="!h-[90vh]">
+    <Recorder />
+  </Drawer>
+  <div class="fixed bottom-4 flex justify-center w-full">
+    <Button icon="pi pi-plus" @click="recorderVisible = true" size="large" raised rounded class="!w-auto !h-auto"/>
   </div>
 </template>

@@ -10,6 +10,10 @@ export default defineNuxtConfig({
       '@nuxtjs/tailwindcss',
       'nuxt-lodash'
     ],
+    lodash: {
+        prefix: "_",
+        upperAfterPrefix: false,
+    },
     primevue: {
         options: {
             theme: {
