@@ -3,6 +3,7 @@ export interface LedgerEntry {
     multiplier: number,
     value: number, // Pre-multiplied
     timestamp: Date,
+    author: string,
 }
 
 export interface LedgerTemplate {
@@ -46,8 +47,8 @@ export const useLedgerStore = defineStore('ledger', {
         }
     },
     actions: {
-        addEntry(title: string, multiplier: number, value: number) {
-            this.entries.push({ title, multiplier, value: value * multiplier, timestamp: new Date() });
+        addEntry(title: string, multiplier: number, value: number, author = 'unknown') {
+            this.entries.push({ title, multiplier, value: value * multiplier, timestamp: new Date(), author });
         },
         deleteEntry(id: number) {
             this.entries.splice(id, 1);
