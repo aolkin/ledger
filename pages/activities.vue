@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DataTableRowReorderEvent } from "primevue/datatable"
+import type { LedgerTemplate } from "../stores/ledger"
 
 definePageMeta({
     title: 'Ledger Configuration',
@@ -7,6 +8,7 @@ definePageMeta({
 
 const route = useRoute();
 const ledger = useLedgerStore();
+const confirm = useConfirm();
 
 // const previousUrl = useRouter().options.history.state.back;
 // onBeforeRouteLeave((to, _) => {
@@ -30,11 +32,31 @@ const onReorder = (event: DataTableRowReorderEvent) => {
 
 const addActivity = () => {
     const id = ledger.addTemplate({
-        title: 'New Activity',
+        title: `New Activity ${ledger.templates.length}`,
         value: 1,
         unit: 'time',
     });
     expandedRows.value = { [id]: true };
+}
+
+const removeActivity = (item: LedgerTemplate) => {
+    confirm.require({
+        message: `Are you sure you want to delete ${item.title}?`,
+        header: 'Delete Activity',
+        icon: 'pi pi-trash',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Delete',
+            severity: 'danger',
+        },
+        accept: () => {
+            ledger.removeTemplate(item.id);
+        },
+    });
 }
 
 </script>
@@ -55,7 +77,7 @@ const addActivity = () => {
     <Column class="button-column">
       <template #body="slotProps">
         <Button icon="pi pi-trash" severity="danger" size="small"
-                @click="ledger.removeTemplate(slotProps.data.id)" />
+                @click="removeActivity(slotProps.data)" />
       </template>
     </Column>
     <template #expansion="slotProps">

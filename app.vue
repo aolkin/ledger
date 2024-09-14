@@ -11,6 +11,7 @@ useHead({
 <template>
   <NuxtRouteAnnouncer />
   <Toast style="max-width: calc(100% - 40px)" />
+  <ConfirmDialog />
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

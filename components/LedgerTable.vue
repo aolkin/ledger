@@ -1,22 +1,23 @@
 <script setup lang="ts">
 
 import { diffMinutes, format, sameDay, sameHour } from "@formkit/tempo"
-import type { ObjectId } from "../stores/ledger"
+import type { LedgerEntry, ObjectId } from "../stores/ledger"
 
 const ledger = useLedgerStore();
+const confirm = useConfirm();
 
-const formatTimestamp = (date: Date): string => {
+const formatTimestamp = (date: Date, long?: boolean): string => {
     const now = new Date();
     if (sameDay(now, date)) {
         const minutesAgo = diffMinutes(now, date)
         if (minutesAgo < 1) {
             return 'just now'
         } else if (minutesAgo < 60) {
-            return `${minutesAgo} min${minutesAgo > 1 ? 's' : ''}`;
+            return `${minutesAgo} min${minutesAgo > 1 ? 's' : ''}${long ? ' ago' : ''}`;
         }
         return format(date, 'h:mm a');
     }
-    return format(date, 'hA M/DD');
+    return format(date, long ? { date: 'medium', time: 'medium' } : 'hA M/DD');
 }
 
 interface TableProps {
@@ -44,6 +45,26 @@ const sortBy = (field: string) => {
 const sortIcon = computed(() => {
     return tableProps.order === -1 ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt';
 })
+
+const removeEntry = (item: LedgerEntry) => {
+    confirm.require({
+        message: `Are you sure you want to delete ${item.title} from ${formatTimestamp(item.timestamp, true)}?`,
+        header: 'Delete Entry',
+        icon: 'pi pi-trash',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Delete',
+            severity: 'danger',
+        },
+        accept: () => {
+            ledger.removeEntry(item.id)
+        },
+    });
+}
 
 </script>
 
@@ -87,7 +108,7 @@ const sortIcon = computed(() => {
               <div>{{ format(item.timestamp, { date: "medium", time: "medium" }) }}</div>
               <div>
                 <Button icon="pi pi-trash" severity="danger" size="small"
-                        @click="ledger.removeEntry(item.id)" />
+                        @click="removeEntry(item)" />
               </div>
             </div>
             <div v-if="item.notes">{{ item.notes }}</div>
