@@ -16,7 +16,7 @@ const multiplier = ref(1);
 const total = computed(() => multiplier.value * item.value);
 
 const addActivity = () => {
-    ledger.addEntry(item.title, multiplier.value, item.value);
+    ledger.addEntry(item, multiplier.value);
     toast.add({
         severity: 'success',
         summary: `Recorded ${item.title}`,

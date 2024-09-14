@@ -39,8 +39,6 @@ onBeforeRouteLeave((to, _) => {
     <Drawer v-model:visible="recorderVisible" header="Record Progress" position="bottom" class="!h-[90vh]">
       <Recorder />
     </Drawer>
-    <div class="fixed bottom-4 flex justify-center w-full">
-      <Button icon="pi pi-plus" @click="showRecorder" size="large" raised rounded class="!w-auto !h-auto" />
-    </div>
+    <FloatingPlusButton @click="showRecorder" />
   </div>
 </template>

@@ -1,17 +1,21 @@
-export interface LedgerEntry {
+export type ObjectId = string;
+export type Color = string;
+
+export interface LedgerTemplate {
+    id: ObjectId,
     title: string,
+    value: number,
+    unit: string,
+    color?: Color,
+    sort?: number,
+    notes?: string,
+}
+
+export interface LedgerEntry extends Omit<LedgerTemplate, 'sort'> {
     multiplier: number,
     value: number, // Pre-multiplied
     timestamp: Date,
     author: string,
-    notes?: string,
-}
-
-export interface LedgerTemplate {
-    title: string,
-    value: number,
-    unit: string,
-    notes?: string,
 }
 
 interface LedgerState {
@@ -36,6 +40,11 @@ function parseTimestamps(key: string, value: string) {
     return value;
 }
 
+// TODO: generate these on the server?
+function generateId(): ObjectId {
+    return new Date().getTime().toString();
+}
+
 export const useLedgerStore = defineStore('ledger', {
     state: (): LedgerState => {
         return ({ entries: [], templates: [] })
@@ -48,14 +57,30 @@ export const useLedgerStore = defineStore('ledger', {
         }
     },
     actions: {
-        addEntry(title: string, multiplier: number, value: number, author = 'unknown') {
-            this.entries.push({ title, multiplier, value: value * multiplier, timestamp: new Date(), author });
+        addEntry(template: LedgerTemplate, multiplier: number, author = 'unknown') {
+            this.entries.push({
+                ...template,
+                multiplier,
+                value: template.value * multiplier,
+                timestamp: new Date(),
+                author,
+                id: generateId(),
+            });
         },
-        deleteEntry(id: number) {
-            this.entries.splice(id, 1);
+        removeEntry(id: ObjectId) {
+            this.entries.splice(this.entries.findIndex(entry => entry.id === id), 1);
         },
-        addTemplate(title: string, value: number, unit: string, notes?: string) {
-            this.templates.push({ title, value, unit, notes });
+        addTemplate(template: Omit<LedgerTemplate, 'sort' | 'id'>): ObjectId {
+            let id = generateId()
+            this.templates.push({
+                ...template,
+                sort: this.templates.length,
+                id,
+            });
+            return id;
+        },
+        removeTemplate(id: ObjectId) {
+            this.templates.splice(this.templates.findIndex(entry => entry.id === id), 1);
         }
     },
     persist: {

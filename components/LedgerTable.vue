@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import { diffMinutes, format, sameDay, sameHour } from "@formkit/tempo"
+import type { ObjectId } from "../stores/ledger"
 
 const ledger = useLedgerStore();
 
@@ -21,7 +22,7 @@ const formatTimestamp = (date: Date): string => {
 interface TableProps {
     field: string,
     order: number,
-    expanded?: number,
+    expanded?: ObjectId,
 }
 
 const tableProps: TableProps = reactive({
@@ -31,6 +32,7 @@ const tableProps: TableProps = reactive({
 })
 
 const sortBy = (field: string) => {
+    tableProps.expanded = undefined;
     if (tableProps.field === field) {
         tableProps.order = -tableProps.order;
     } else {
@@ -48,9 +50,9 @@ const sortIcon = computed(() => {
 <template>
   <DataView :value="ledger.entries" :sort-field="tableProps.field" :sort-order="tableProps.order">
     <template #list="slotProps">
-      <div class="grid grid-cols-[auto_auto_auto]" v-auto-animate>
+      <div class="grid grid-cols-[auto_auto_auto]">
         <div class="grid grid-cols-subgrid col-span-3 gap-4 border-y-2
-         border-surface-200 dark:border-surface-700 font-bold">
+         border-surface-200 dark:border-surface-700 font-bold row">
           <div class="truncate">
             Activity
           </div>
@@ -64,21 +66,30 @@ const sortIcon = computed(() => {
           </div>
         </div>
         <div v-for="(item, index) in slotProps.items" :key="index"
-             class="grid grid-cols-subgrid col-span-3 gap-4 border-b
-              border-surface-200 dark:border-surface-700 cursor-pointer"
-             @click="tableProps.expanded = tableProps.expanded === index ? undefined : index">
-          <div class="overflow-hidden w-full flex gap-1.5">
-            <span class="truncate">{{ item.title }}</span>
-            <span class="text-slate-500 dark:text-slate-400">x{{ item.multiplier }}</span>
+             class="grid grid-cols-subgrid col-span-3 gap-4 border-b row
+              border-surface-200 dark:border-surface-700" v-auto-animate>
+          <div class="grid grid-cols-subgrid col-span-3 cursor-pointer"
+               @click="tableProps.expanded = tableProps.expanded === item.id ? undefined : item.id">
+            <div class="overflow-hidden w-full flex gap-1.5">
+              <span class="truncate">{{ item.title }}</span>
+              <span class="text-slate-500 dark:text-slate-400">x{{ item.multiplier }}</span>
+            </div>
+            <div class="truncate text-right">
+              {{ formatTimestamp(item.timestamp) }}
+            </div>
+            <div class="text-right">
+              {{ item.value }} pts
+            </div>
           </div>
-          <div class="truncate text-right">
-            {{ formatTimestamp(item.timestamp) }}
-          </div>
-          <div class="text-right">
-            {{ item.value }} pts
-          </div>
-          <div v-if="tableProps.expanded === index" class="col-span-3 mx-2 text-center">
-            <div>{{ format(item.timestamp, { date: "medium", time: "medium" }) }}</div>
+          <div v-if="tableProps.expanded === item.id" class="col-span-3 mx-2 text-center">
+            <div class="flex gap-4 w-full justify-between">
+              <div>{{ item.multiplier }} {{ item.unit + (item.multiplier === 1 ? '' : 's') }}</div>
+              <div>{{ format(item.timestamp, { date: "medium", time: "medium" }) }}</div>
+              <div>
+                <Button icon="pi pi-trash" severity="danger" size="small"
+                        @click="ledger.removeEntry(item.id)" />
+              </div>
+            </div>
             <div v-if="item.notes">{{ item.notes }}</div>
           </div>
         </div>
@@ -88,7 +99,7 @@ const sortIcon = computed(() => {
 </template>
 
 <style scoped>
-.grid > .grid {
+.row {
     padding-top: 0.5rem;
     padding-bottom: 0.75rem;
 }
