@@ -4,6 +4,7 @@ export interface LedgerEntry {
     value: number, // Pre-multiplied
     timestamp: Date,
     author: string,
+    notes?: string,
 }
 
 export interface LedgerTemplate {
@@ -59,7 +60,7 @@ export const useLedgerStore = defineStore('ledger', {
     },
     persist: {
         serializer: {
-            deserialize (value: string): LedgerEntry {
+            deserialize(value: string): LedgerEntry {
                 return JSON.parse(value, parseTimestamps);
             },
             serialize: JSON.stringify,
