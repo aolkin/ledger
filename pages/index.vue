@@ -1,32 +1,31 @@
 <script setup lang="ts">
-import { onBeforeRouteLeave } from "vue-router"
+import { onBeforeRouteLeave } from 'vue-router'
 
 definePageMeta({
-    // title: 'Home'
-});
+  // title: 'Home'
+})
 
-const router = useRouter();
-const ledger = useLedgerStore();
+const router = useRouter()
+const ledger = useLedgerStore()
 
-const recorderVisible = ref(false);
+const recorderVisible = ref(false)
 
 function showRecorder() {
-    recorderVisible.value = true;
-    router.push({ name: 'index' })
+  recorderVisible.value = true
+  router.push({ name: 'index' })
 }
 
-watch(ledger.entries, () => recorderVisible.value = false);
+watch(ledger.entries, () => (recorderVisible.value = false))
 
-const previousUrl = useRouter().options.history.state.back;
+const previousUrl = useRouter().options.history.state.back
 onBeforeRouteLeave((to, _) => {
-    if (recorderVisible.value) {
-        recorderVisible.value = false;
-        return false;
-    } else {
-        return true;
-    }
-});
-
+  if (recorderVisible.value) {
+    recorderVisible.value = false
+    return false
+  } else {
+    return true
+  }
+})
 </script>
 
 <template>
@@ -36,7 +35,12 @@ onBeforeRouteLeave((to, _) => {
       <div class="text-3xl">Today: {{ ledger.today }} pts</div>
     </div>
     <LedgerTable class="mb-20" />
-    <Drawer v-model:visible="recorderVisible" header="Record Progress" position="bottom" class="!h-[90vh]">
+    <Drawer
+      v-model:visible="recorderVisible"
+      header="Record Progress"
+      position="bottom"
+      class="!h-[90vh]"
+    >
       <Recorder />
     </Drawer>
     <FloatingPlusButton @click="showRecorder" />

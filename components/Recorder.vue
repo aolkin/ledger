@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import RecorderActivity from "./RecorderActivity.vue"
+import RecorderActivity from './RecorderActivity.vue'
 
-const ledger = useLedgerStore();
+const ledger = useLedgerStore()
 </script>
 
 <template>
-  <DataView :value="ledger.templates" layout="grid">
+  <DataView
+    :value="ledger.templates"
+    layout="grid"
+    sort-field="group"
+    sort-order="1"
+  >
     <template #grid="slotProps">
       <div class="grid grid-cols-12 gap-4">
-        <div v-for="(item, index) in slotProps.items" :key="index"
-             class="col-span-6 sm:col-span-4 md:col-span-3 xl:col-span-2">
+        <div
+          v-for="(item, index) in slotProps.items"
+          :key="index"
+          class="col-span-6 sm:col-span-4 md:col-span-3 xl:col-span-2"
+        >
           <RecorderActivity :item="item" />
         </div>
       </div>

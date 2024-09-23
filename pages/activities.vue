@@ -1,98 +1,128 @@
 <script setup lang="ts">
-import type { DataTableRowReorderEvent } from "primevue/datatable"
-import type { LedgerTemplate } from "../stores/ledger"
+import type { DataTableRowExpandEvent } from 'primevue/datatable'
+import type { ObjectId, LedgerTemplate } from '../stores/ledger'
 
-definePageMeta({
-    title: 'Ledger Configuration',
-});
+useHead({
+  title: 'Configuration',
+})
 
-const route = useRoute();
-const ledger = useLedgerStore();
-const confirm = useConfirm();
+const route = useRoute()
+const ledger = useLedgerStore()
+const confirm = useConfirm()
 
-// const previousUrl = useRouter().options.history.state.back;
-// onBeforeRouteLeave((to, _) => {
-//     if (recorderVisible.value) {
-//         recorderVisible.value = false;
-//         return to.fullPath === previousUrl;
-//     } else {
-//         return true;
-//     }
-// })
+const expandedRows = ref<Record<string, boolean>>({})
+const expandedRowGroups = ref()
+const rowMeta = ref<
+  Record<ObjectId, { dirty: boolean; data?: LedgerTemplate }>
+>({})
 
-const expandedRows = ref<Record<string, boolean>>({});
-
-const onReorder = (event: DataTableRowReorderEvent) => {
-    const minSort = ledger.templates[event.dropIndex - 1].sort ?? 0;
-    const maxSort = ledger.templates[event.dropIndex].sort ?? 1;
-    const targetSort = minSort + (maxSort - minSort) / 2
-    console.log(event.dragIndex, event.dropIndex, minSort, maxSort, targetSort);
-    ledger.templates[event.dragIndex].sort = targetSort;
+const onRowExpand = (event: DataTableRowExpandEvent) => {
+  console.log(event.data)
+  rowMeta.value[event.data.id] = { dirty: false }
 }
 
 const addActivity = () => {
-    const id = ledger.addTemplate({
-        title: `New Activity ${ledger.templates.length}`,
-        value: 1,
-        unit: 'time',
-    });
-    expandedRows.value = { [id]: true };
+  const id = ledger.addTemplate({
+    title: `New Activity ${ledger.templates.length}`,
+    value: 1,
+    unit: 'time',
+    group: '',
+  })
+  expandedRows.value = { [id]: true }
+  expandedRowGroups.value = ['']
+  rowMeta.value[id] = { dirty: false }
 }
 
 const removeActivity = (item: LedgerTemplate) => {
-    confirm.require({
-        message: `Are you sure you want to delete ${item.title}?`,
-        header: 'Delete Activity',
-        icon: 'pi pi-trash',
-        rejectProps: {
-            label: 'Cancel',
-            severity: 'secondary',
-            outlined: true
-        },
-        acceptProps: {
-            label: 'Delete',
-            severity: 'danger',
-        },
-        accept: () => {
-            ledger.removeTemplate(item.id);
-        },
-    });
+  confirm.require({
+    message: `Are you sure you want to delete ${item.title}?`,
+    header: 'Delete Activity',
+    icon: 'pi pi-trash',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true,
+    },
+    acceptProps: {
+      label: 'Delete',
+      severity: 'danger',
+    },
+    accept: () => {
+      ledger.removeTemplate(item.id)
+    },
+  })
 }
 
+const updateActivity = (activity: LedgerTemplate) => {
+  ledger.updateTemplate(activity.id, activity)
+  delete expandedRows.value[activity.id]
+}
 </script>
 
 <template>
-  <DataTable :value="ledger.templates" @row-reorder="onReorder" v-model:expanded-rows="expandedRows"
-             sort-field="sort" data-key="id" class="activity-table">
-    <Column row-reorder class="button-column" />
-    <Column expander class="button-column" />
-    <Column field="title">
-      <template #body="slotProps">
-        <div class="cursor-pointer"
-             @click="expandedRows = expandedRows[slotProps.data.id] ? {} : { [slotProps.data.id]: true }">
-          {{ slotProps.data.title }}
-        </div>
+  <div>
+    <DataTable
+      :value="ledger.templates"
+      v-model:expanded-rows="expandedRows"
+      v-model:expanded-row-groups="expandedRowGroups"
+      @row-expand="onRowExpand"
+      expandable-row-groups
+      row-group-mode="subheader"
+      group-rows-by="group"
+      sort-field="group"
+      :sort-order="1"
+      data-key="id"
+      class="activity-table mb-20"
+    >
+      <template #groupheader="slotProps">
+        <b class="align-top ml-2">{{
+          slotProps.data.group || 'Default Group'
+        }}</b>
       </template>
-    </Column>
-    <Column class="button-column">
-      <template #body="slotProps">
-        <Button icon="pi pi-trash" severity="danger" size="small"
-                @click="removeActivity(slotProps.data)" />
+      <Column expander class="button-column" />
+      <Column field="title">
+        <template #body="slotProps">
+          <div
+            class="cursor-pointer"
+            @click="
+              expandedRows = expandedRows[slotProps.data.id]
+                ? {}
+                : { [slotProps.data.id]: false }
+            "
+          >
+            {{ slotProps.data.title }}
+          </div>
+        </template>
+      </Column>
+      <Column class="button-column">
+        <template #body="slotProps">
+          <Button
+            icon="pi pi-trash"
+            severity="danger"
+            size="small"
+            @click="removeActivity(slotProps.data)"
+          />
+        </template>
+      </Column>
+      <template #expansion="slotProps">
+        <ActivityEditor
+          :template="slotProps.data"
+          @update:dirty="rowMeta[slotProps.data.id].dirty = $event.data"
+          @update="rowMeta[slotProps.data.id].data = $event.data"
+          @save="updateActivity"
+        />
       </template>
-    </Column>
-    <template #expansion="slotProps">
-      <ActivityEditor :template="slotProps.data" />
-    </template>
-  </DataTable>
-  <FloatingPlusButton @click="addActivity" />
+    </DataTable>
+    <FloatingPlusButton @click="addActivity" />
+  </div>
 </template>
 
 <style scoped>
 .activity-table :deep(.button-column) {
-    width: calc(var(--p-button-icon-only-width) + 8px);
+  width: calc(var(--p-button-icon-only-width) + 8px);
 }
 
 .activity-table :deep(thead) {
-    display: none;
+  display: none;
 }
 </style>

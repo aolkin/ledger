@@ -1,94 +1,130 @@
-export type ObjectId = string;
-export type Color = string;
+export type ObjectId = string
+export type Color = string
+
+export interface LedgerMeta {
+  id: ObjectId
+  name: string
+  startDate: Date
+  endDate: Date
+}
 
 export interface LedgerTemplate {
-    id: ObjectId,
-    title: string,
-    value: number,
-    unit: string,
-    color?: Color,
-    sort?: number,
-    notes?: string,
+  id: ObjectId
+  title: string
+  value: number
+  unit: string
+  group: string
+  color?: Color
+  notes?: string
 }
 
 export interface LedgerEntry extends Omit<LedgerTemplate, 'sort'> {
-    multiplier: number,
-    value: number, // Pre-multiplied
-    timestamp: Date,
-    author: string,
+  multiplier: number
+  value: number // Pre-multiplied
+  timestamp: Date
+  author: string
 }
 
 interface LedgerState {
-    entries: LedgerEntry[];
-    templates: LedgerTemplate[];
+  ledgerMeta: LedgerMeta | undefined
+  entryData: Record<ObjectId, LedgerEntry>
+  templateData: Record<ObjectId, LedgerTemplate>
 }
 
 function sumEntries(entries: LedgerEntry[]): number {
-    return entries.reduce((acc, entry) => acc + entry.value, 0);
+  return entries.reduce((acc, entry) => acc + entry.value, 0)
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-    return a.getDate() === b.getDate()
-        && a.getMonth() === b.getMonth()
-        && a.getFullYear() === b.getFullYear();
+  return (
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear()
+  )
 }
 
 function parseTimestamps(key: string, value: string) {
-    if (key === 'timestamp') {
-        return new Date(value);
-    }
-    return value;
+  if (key === 'timestamp') {
+    return new Date(value)
+  }
+  return value
 }
 
 // TODO: generate these on the server?
-function generateId(): ObjectId {
-    return new Date().getTime().toString();
+function _generateId(): ObjectId {
+  return new Date().getTime().toString(16)
+}
+
+function generateId(existing: Record<ObjectId, unknown>): ObjectId {
+  let id = _generateId()
+  while (id in [existing]) {
+    id = _generateId()
+  }
+  return id
 }
 
 export const useLedgerStore = defineStore('ledger', {
-    state: (): LedgerState => {
-        return ({ entries: [], templates: [] })
+  state: (): LedgerState => {
+    return { ledgerMeta: undefined, entryData: {}, templateData: {} }
+  },
+  getters: {
+    entries: (state: LedgerState): LedgerEntry[] =>
+      Object.values(state.entryData),
+    templates: (state: LedgerState): LedgerTemplate[] =>
+      Object.values(state.templateData),
+    total(): number {
+      return sumEntries(this.entries)
     },
-    getters: {
-        total: (state: LedgerState) => sumEntries(state.entries),
-        today: (state: LedgerState) => {
-            const now = new Date();
-            return sumEntries(state.entries.filter(entry => isSameDay(now, entry.timestamp)));
-        }
+    today(): number {
+      const now = new Date()
+      return sumEntries(
+        this.entries.filter((entry) => isSameDay(now, entry.timestamp)),
+      )
     },
-    actions: {
-        addEntry(template: LedgerTemplate, multiplier: number, author = 'unknown') {
-            this.entries.push({
-                ...template,
-                multiplier,
-                value: template.value * multiplier,
-                timestamp: new Date(),
-                author,
-                id: generateId(),
-            });
-        },
-        removeEntry(id: ObjectId) {
-            this.entries.splice(this.entries.findIndex(entry => entry.id === id), 1);
-        },
-        addTemplate(template: Omit<LedgerTemplate, 'sort' | 'id'>): ObjectId {
-            let id = generateId()
-            this.templates.push({
-                ...template,
-                sort: this.templates.length,
-                id,
-            });
-            return id;
-        },
-        removeTemplate(id: ObjectId) {
-            this.templates.splice(this.templates.findIndex(entry => entry.id === id), 1);
-        }
+  },
+  actions: {
+    addEntry(
+      template: LedgerTemplate,
+      multiplier: number,
+      author = 'unknown',
+    ): ObjectId {
+      const id = generateId(this.entryData)
+      this.entryData[id] = {
+        ...template,
+        multiplier,
+        value: template.value * multiplier,
+        timestamp: new Date(),
+        author,
+        id,
+      }
+      return id
     },
-    persist: {
-        serializer: {
-            deserialize(value: string): LedgerEntry {
-                return JSON.parse(value, parseTimestamps);
-            },
-            serialize: JSON.stringify,
-        },
+    removeEntry(id: ObjectId) {
+      delete this.entryData[id]
     },
+    addTemplate(template: Omit<LedgerTemplate, 'sort' | 'id'>): ObjectId {
+      let id = generateId(this.templateData)
+      this.templateData[id] = {
+        ...template,
+        id,
+      }
+      return id
+    },
+    removeTemplate(id: ObjectId) {
+      delete this.templateData[id]
+    },
+    updateTemplate(id: ObjectId, template: Partial<LedgerTemplate>) {
+      this.templateData[id] = {
+        ...this.templateData[id],
+        ...template,
+      }
+    },
+  },
+  persist: {
+    serializer: {
+      deserialize: (value: string): LedgerState =>
+        JSON.parse(value, parseTimestamps),
+      serialize: JSON.stringify,
+    },
+  },
 })

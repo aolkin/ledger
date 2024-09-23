@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import piniaPluginPersistedState from "pinia-plugin-persistedstate";
+import piniaPluginPersistedState from 'pinia-plugin-persistedstate'
 
-usePinia().use(piniaPluginPersistedState);
+usePinia().use(piniaPluginPersistedState)
 
 useHead({
-    titleTemplate: title => title ? `${title} - Activity Ledger` : 'Activity Ledger',
-});
+  titleTemplate: (title) =>
+    title ? `${title} - Activity Ledger` : 'Activity Ledger',
+})
 </script>
 
 <template>
