@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { VueQueryDevtools } from '@tanstack/vue-query-devtools'
 import piniaPluginPersistedState from 'pinia-plugin-persistedstate'
 
 usePinia().use(piniaPluginPersistedState)
@@ -16,6 +17,7 @@ useHead({
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <VueQueryDevtools />
 </template>
 
 <style>

@@ -1,0 +1,73 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LedgerMeta {
+  id        String           @id @default(uuid()) @unique
+  slug      String           @unique
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  templates LedgerTemplate[]
+  entries   LedgerEntry[]
+  updates   UpdateLog[]
+
+  @@index([slug])
+}
+
+model LedgerTemplate {
+  ledgerId String
+  ledger   LedgerMeta  @relation(fields: [ledgerId], references: [id])
+  id       String      @id @default(uuid())
+  title    String
+  value    Float
+  unit     String
+  group    String
+  color    String?
+  notes    String?
+  updated  DateTime    @updatedAt
+  updates  UpdateLog[]
+
+  @@index([ledgerId])
+  @@unique([ledgerId, id])
+}
+
+model LedgerEntry {
+  ledgerId   String
+  ledger     LedgerMeta  @relation(fields: [ledgerId], references: [id])
+  id         String      @id @default(uuid())
+  title      String
+  value      Float
+  unit       String
+  group      String
+  color      String?
+  notes      String?
+  multiplier Float
+  timestamp  DateTime
+  updated    DateTime    @updatedAt
+  author     String
+  updates    UpdateLog[]
+
+  @@index([ledgerId])
+  @@unique([ledgerId, id])
+}
+
+model UpdateLog {
+  ledgerId         String
+  ledger           LedgerMeta      @relation(fields: [ledgerId], references: [id])
+  id               String          @id @default(uuid())
+  action           String
+  timestamp        DateTime
+  ledgerTemplateId String?
+  ledgerTemplate   LedgerTemplate? @relation(fields: [ledgerTemplateId], references: [id])
+  ledgerEntryId    String?
+  ledgerEntry      LedgerEntry?    @relation(fields: [ledgerEntryId], references: [id])
+
+  @@index([ledgerId, timestamp])
+}

@@ -18,7 +18,7 @@ export interface LedgerTemplate {
   notes?: string
 }
 
-export interface LedgerEntry extends Omit<LedgerTemplate, 'sort'> {
+export interface LedgerEntry extends LedgerTemplate {
   multiplier: number
   value: number // Pre-multiplied
   timestamp: Date

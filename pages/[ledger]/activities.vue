@@ -1,14 +1,46 @@
 <script setup lang="ts">
+import {
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/vue-query'
 import type { DataTableRowExpandEvent } from 'primevue/datatable'
-import type { ObjectId, LedgerTemplate } from '../stores/ledger'
+import { queryMeta } from '../../clients/queries'
+import LoadingBars from '../../components/LoadingBars.vue'
+import type { CreateTemplateInput } from '../../worker/router-types'
+
+const { ledger: slug } = defineProps<{ ledger: string }>()
 
 useHead({
   title: 'Configuration',
 })
 
+const trpc = useTrpc()
+
 const route = useRoute()
 const ledger = useLedgerStore()
 const confirm = useConfirm()
+const queryClient = useQueryClient()
+
+const metaQuery = useQuery(queryMeta(slug))
+const ledgerUuid = computed(() => metaQuery.data?.value?.id)
+
+const queryFn = computed(() => {
+  const ledgerId = ledgerUuid.value
+  return typeof ledgerId === 'string'
+    ? () => trpc.template.getForLedger.query({ ledgerId })
+    : skipToken
+})
+const {
+  isPending,
+  isSuccess,
+  isError,
+  data: templates,
+} = useQuery({
+  queryKey: ['templates', ledgerUuid.value],
+  queryFn,
+})
 
 const expandedRows = ref<Record<string, boolean>>({})
 const expandedRowGroups = ref()
@@ -21,17 +53,39 @@ const onRowExpand = (event: DataTableRowExpandEvent) => {
   rowMeta.value[event.data.id] = { dirty: false }
 }
 
+const addMutation = useMutation({
+  mutationFn: async (data: Omit<CreateTemplateInput, 'ledgerId'>) => {
+    const ledgerId = ledgerUuid.value
+    if (!ledgerId) {
+      throw new Error()
+    }
+    return await trpc.template.create.mutate({ ...data, ledgerId })
+  },
+  onSuccess: (data) => {
+    console.log(data)
+    queryClient.setQueryData(
+      ['templates', ledgerUuid.value],
+      [...(templates.value ?? []), data],
+    )
+    expandedRows.value = { [data.id]: true }
+    expandedRowGroups.value = ['']
+    rowMeta.value[data.id] = { dirty: false }
+  },
+})
 const addActivity = () => {
-  const id = ledger.addTemplate({
-    title: `New Activity ${ledger.templates.length}`,
+  addMutation.mutate({
+    title: `New Activity ${templates.value?.length}`,
     value: 1,
     unit: 'time',
     group: '',
   })
-  expandedRows.value = { [id]: true }
-  expandedRowGroups.value = ['']
-  rowMeta.value[id] = { dirty: false }
 }
+
+const removeMutation = useMutation({
+  mutationFn: async (data: { id: string }) => {
+    trpc.template.delete.mutate({ ...data, ledgerId: ledgerUuid.value })
+  },
+})
 
 const removeActivity = (item: LedgerTemplate) => {
   confirm.require({
@@ -48,7 +102,7 @@ const removeActivity = (item: LedgerTemplate) => {
       severity: 'danger',
     },
     accept: () => {
-      ledger.removeTemplate(item.id)
+      trpc.template.delete.mutate({ id: item.id, ledgerId: ledgerUuid.value })
     },
   })
 }
@@ -61,8 +115,11 @@ const updateActivity = (activity: LedgerTemplate) => {
 
 <template>
   <div>
+    <LoadingBars v-if="isPending" />
+    <div v-else-if="isError">Error!</div>
     <DataTable
-      :value="ledger.templates"
+      v-else
+      :value="templates"
       v-model:expanded-rows="expandedRows"
       v-model:expanded-row-groups="expandedRowGroups"
       @row-expand="onRowExpand"
@@ -113,7 +170,7 @@ const updateActivity = (activity: LedgerTemplate) => {
         />
       </template>
     </DataTable>
-    <FloatingPlusButton @click="addActivity" />
+    <FloatingPlusButton @click="addActivity" v-if="isSuccess" />
   </div>
 </template>
 

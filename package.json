@@ -7,27 +7,39 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare && prisma generate"
+  },
+  "prisma": {
+    "schema": "worker/schema.prisma"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20240919.0",
     "@formkit/auto-animate": "^0.8.2",
     "@formkit/tempo": "^0.1.2",
+    "@paralleldrive/cuid2": "^2.2.2",
     "@primevue/themes": "^4.0.2",
+    "@prisma/adapter-d1": "^5.20.0",
+    "@prisma/client": "5.20.0",
+    "@tanstack/vue-query": "^5.59.0",
+    "@trpc/client": "^10.45.2",
     "nuxt": "^3.12.4",
     "pinia": "^2.2.0",
     "pinia-plugin-persistedstate": "^3.2.1",
     "primeicons": "^7.0.0",
     "primevue": "^4.0.2",
+    "superjson": "^2.2.1",
     "tailwindcss-primeui": "^0.3.4",
     "vue": "latest",
-    "wrangler": "^3.78.7"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.12.1",
     "@pinia/nuxt": "^0.5.2",
     "@primevue/nuxt-module": "^4.0.2",
+    "@trpc/server": "^10.45.2",
     "nuxt-lodash": "^2.5.3",
-    "prettier": "3.3.3"
+    "prettier": "3.3.3",
+    "prisma": "^5.20.0",
+    "wrangler": "^3.79.0"
   }
 }

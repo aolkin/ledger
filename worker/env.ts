@@ -1,5 +1,3 @@
-import type { LedgerData } from './ledger-data'
-
 /**
  * Associate bindings declared in wrangler.toml with the TypeScript type system
  */
@@ -8,8 +6,9 @@ export interface Env {
   // MY_KV_NAMESPACE: KVNamespace;
   //
   // Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-  LEDGER: DurableObjectNamespace<LedgerData>
+  // LEDGER: DurableObjectNamespace<LedgerData>
   //
+  DB: D1Database
   // Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
   // MY_BUCKET: R2Bucket;
   //
