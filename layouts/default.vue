@@ -6,7 +6,6 @@ import LoadingBars from '../components/LoadingBars.vue'
 const route = useRoute()
 const trpc = useTrpc()
 const pathLedgerId = computed(() => {
-  console.log(route.params, route.path)
   return route.params.ledger
 })
 const queryFn = computed(() => {
@@ -32,27 +31,42 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
           text
         />
       </template>
-      <template #center v-if="pathLedgerId">
-        <Button
-          as="router-link"
-          :to="{
-            name: 'ledger-activities',
-            params: { ledger: pathLedgerId },
-          }"
-          text
-        >
-          <i class="pi pi-list" />
-          <span>{{ data ? data.name : 'Loading...' }}</span>
-        </Button>
+      <template #center>
+        <div v-if="pathLedgerId">
+          <Button
+            as="router-link"
+            :to="{
+              name: 'ledger-activities',
+              params: { ledger: pathLedgerId },
+            }"
+            text
+          >
+            <i class="pi pi-list" />
+            <span>{{ data ? data.name : 'Loading...' }}</span>
+          </Button>
+        </div>
+        <div v-else>
+          <b>{{ route.meta.title }}</b>
+        </div>
       </template>
-      <template #end v-if="pathLedgerId">
+      <template #end>
         <Button
+          v-if="pathLedgerId"
           as="router-link"
           :to="{
             name: 'ledger-manage',
             params: { ledger: pathLedgerId },
           }"
           icon="pi pi-cog"
+          text
+        />
+        <Button
+          v-else
+          as="router-link"
+          :to="{
+            name: 'user',
+          }"
+          icon="pi pi-user"
           text
         />
       </template>

@@ -55,6 +55,9 @@ const LedgerIdSchema = z.object({ ledgerId: ObjectIdSchema })
 const LedgerObjectIdsSchema = LedgerIdSchema.and(
   z.object({ id: ObjectIdSchema }),
 )
+const PartialLedgerMetaSchema = LedgerMetaSchema.partial().and(
+  z.object({ id: ObjectIdSchema }),
+)
 const PartialLedgerTemplateSchema = LedgerTemplateSchema.partial().and(
   LedgerObjectIdsSchema,
 )
@@ -65,19 +68,27 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
 // Define your tRPC procedures
 export const appRouter = t.router({
   ledger: t.router({
-    list: t.procedure.query(async ({ ctx }) =>
-      ctx.prisma.ledgerMeta.findMany(),
+    list: t.procedure.query(
+      async ({ ctx }) => await ctx.prisma.ledgerMeta.findMany(),
     ),
-    get: t.procedure.input(LedgerIdSchema).query(async ({ input, ctx }) =>
-      ctx.prisma.ledgerMeta.findUniqueOrThrow({
-        where: { id: input.ledgerId },
-      }),
+    get: t.procedure.input(LedgerIdSchema).query(
+      async ({ input, ctx }) =>
+        await ctx.prisma.ledgerMeta.findUniqueOrThrow({
+          where: { id: input.ledgerId },
+        }),
     ),
-    create: t.procedure
-      .input(LedgerMetaSchema.omit({ id: true }))
-      .mutation(async ({ input, ctx }) =>
-        ctx.prisma.ledgerMeta.create({
+    create: t.procedure.input(LedgerMetaSchema.omit({ id: true })).mutation(
+      async ({ input, ctx }) =>
+        await ctx.prisma.ledgerMeta.create({
           data: { ...input, id: createId() },
+        }),
+    ),
+    update: t.procedure
+      .input(PartialLedgerMetaSchema)
+      .mutation(async ({ input, ctx }) =>
+        ctx.prisma.ledgerMeta.update({
+          where: { id: input.id },
+          data: input,
         }),
       ),
   }),
@@ -104,8 +115,9 @@ export const appRouter = t.router({
 
     getForLedger: t.procedure
       .input(LedgerIdSchema)
-      .query(async ({ input, ctx }) =>
-        ctx.prisma.ledgerTemplate.findMany({ where: input }),
+      .query(
+        async ({ input, ctx }) =>
+          await ctx.prisma.ledgerTemplate.findMany({ where: input }),
       ),
 
     // Partial update for LedgerTemplate

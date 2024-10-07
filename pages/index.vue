@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import LoadingBars from '../components/LoadingBars.vue'
-import type { CreateLedgerInput } from '../worker/router-types'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import LedgerMetaEditor from '~/components/LedgerMetaEditor.vue'
+import LoadingBars from '~/components/LoadingBars.vue'
 
 useHead({
+  title: 'Ledgers',
+})
+definePageMeta({
   title: 'Ledgers',
 })
 
@@ -25,22 +28,17 @@ const {
 
 const expandedRows = ref<Record<string, boolean>>({})
 
-const addMutation = useMutation({
-  mutationFn: async (data: CreateLedgerInput) =>
-    trpc.ledger.create.mutate(data),
-  onSuccess: (data) => {
-    console.log(data)
-    queryClient.setQueryData(['metas'], [...(ledgers.value ?? []), data])
+const adding = ref(false)
+
+const [animationRef] = useAutoAnimate()
+const dataTableRef = ref()
+const dataTablePt = ref({
+  hooks: {
+    onMounted: () => {
+      animationRef.value = dataTableRef.value.$el.querySelector('tbody')
+    },
   },
 })
-
-function addLedger() {
-  addMutation.mutate({
-    name: 'Default',
-    startDate: new Date(),
-    endDate: new Date(),
-  })
-}
 </script>
 
 <template>
@@ -54,6 +52,8 @@ function addLedger() {
     :sort-order="-1"
     data-key="id"
     class="ledger-table"
+    :pt="dataTablePt"
+    ref="dataTableRef"
   >
     <Column expander class="button-column" />
     <Column field="name">
@@ -81,11 +81,22 @@ function addLedger() {
     <!--      </template>-->
     <!--    </Column>-->
     <template #expansion="slotProps">
-      {{ slotProps.data.startDate }}
-      {{ slotProps.data.endDate }}
+      <LedgerMetaEditor
+        :ledger="slotProps.data"
+        @save="delete expandedRows[slotProps.data.id]"
+      />
     </template>
   </DataTable>
-  <FloatingPlusButton @click="addLedger" v-if="isSuccess" />
+  <FloatingPlusButton @click="adding = true" v-if="isSuccess" />
+  <Dialog
+    v-model:visible="adding"
+    modal
+    header="Create New Ledger"
+    dismissable-mask
+    class="m-2"
+  >
+    <LedgerMetaEditor @save="adding = false" />
+  </Dialog>
 </template>
 
 <style scoped>

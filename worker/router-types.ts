@@ -8,10 +8,14 @@ type RouterInput = inferRouterInputs<AppRouter>
 export type CreateLedgerInput = RouterInput['ledger']['create']
 export type CreateLedgerOutput = RouterOutput['ledger']['create']
 export type ListLedgersOutput = RouterOutput['ledger']['list']
+export type LedgerMeta = ListLedgersOutput[0]
+export type UpdateLedgerMetaInput = RouterInput['ledger']['update']
+
 export type CreateTemplateInput = RouterInput['template']['create']
 export type ListTemplatesOutput = RouterOutput['template']['getForLedger']
 export type LedgerTemplate = ListTemplatesOutput[0]
 export type UpdateTemplateInput = RouterInput['template']['update']
+
 export type CreateEntryInput = RouterInput['entry']['create']
 export type ListEntriesOutput = RouterOutput['entry']['getForLedger']
 export type LedgerEntry = ListEntriesOutput[0]
