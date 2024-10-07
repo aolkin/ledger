@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type {
   CreateLedgerInput,
   LedgerMeta,
+  LedgerTemplate,
   UpdateLedgerMetaInput,
 } from '../worker/router-types'
 
 const { ledger } = defineProps<{ ledger?: LedgerMeta }>()
 const emit = defineEmits(['save'])
 
+const confirm = useConfirm()
 const trpc = useTrpc()
 const queryClient = useQueryClient()
 
@@ -63,6 +65,39 @@ const getDataAndMutation = ledger
     }
 
 const { ledgerData, mutate, mutation } = getDataAndMutation()
+
+const removeMutation = useMutation({
+  mutationFn: async (ledgerId: string) => {
+    await trpc.ledger.delete.mutate({ ledgerId })
+    return ledgerId
+  },
+  onSuccess: (ledgerId) => {
+    queryClient.setQueryData(
+      ['metas'],
+      ledgerQuery.data.value?.filter((item) => item.id !== ledgerId),
+    )
+  },
+})
+
+const removeLedger = (item: LedgerTemplate) => {
+  confirm.require({
+    message: `Are you sure you want to delete ${item.title}?`,
+    header: 'Permanently Delete Ledger',
+    icon: 'pi pi-trash',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true,
+    },
+    acceptProps: {
+      label: 'Delete',
+      severity: 'danger',
+    },
+    accept: () => {
+      removeMutation.mutate(item.id)
+    },
+  })
+}
 </script>
 <template>
   <div class="flex items-center gap-4 mt-4 w-full">
@@ -95,6 +130,15 @@ const { ledgerData, mutate, mutation } = getDataAndMutation()
         rounded
         @click="mutate"
         :loading="mutation.isPending.value"
+      />
+    </div>
+    <div class="flex-initial pt-7" v-if="ledger">
+      <Button
+        icon="pi pi-trash"
+        severity="danger"
+        iconPos="right"
+        rounded
+        @click="removeLedger(ledger)"
       />
     </div>
   </div>

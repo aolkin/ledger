@@ -68,21 +68,21 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
 // Define your tRPC procedures
 export const appRouter = t.router({
   ledger: t.router({
-    list: t.procedure.query(
-      async ({ ctx }) => await ctx.prisma.ledgerMeta.findMany(),
+    list: t.procedure.query(async ({ ctx }) =>
+      ctx.prisma.ledgerMeta.findMany(),
     ),
-    get: t.procedure.input(LedgerIdSchema).query(
-      async ({ input, ctx }) =>
-        await ctx.prisma.ledgerMeta.findUniqueOrThrow({
-          where: { id: input.ledgerId },
-        }),
+    get: t.procedure.input(LedgerIdSchema).query(async ({ input, ctx }) =>
+      ctx.prisma.ledgerMeta.findUniqueOrThrow({
+        where: { id: input.ledgerId },
+      }),
     ),
-    create: t.procedure.input(LedgerMetaSchema.omit({ id: true })).mutation(
-      async ({ input, ctx }) =>
-        await ctx.prisma.ledgerMeta.create({
+    create: t.procedure
+      .input(LedgerMetaSchema.omit({ id: true }))
+      .mutation(async ({ input, ctx }) =>
+        ctx.prisma.ledgerMeta.create({
           data: { ...input, id: createId() },
         }),
-    ),
+      ),
     update: t.procedure
       .input(PartialLedgerMetaSchema)
       .mutation(async ({ input, ctx }) =>
@@ -91,6 +91,20 @@ export const appRouter = t.router({
           data: input,
         }),
       ),
+    delete: t.procedure
+      .input(LedgerIdSchema)
+      .mutation(async ({ input, ctx }) => {
+        const ledger = await ctx.prisma.ledgerMeta.findUniqueOrThrow({
+          where: { id: input.ledgerId },
+          include: { templates: true, entries: true },
+        })
+        if (ledger.templates.length === 0 && ledger.entries.length === 0) {
+          await ctx.prisma.updateLog.deleteMany({
+            where: { ledgerId: input.ledgerId },
+          })
+        }
+        return ctx.prisma.ledgerMeta.delete({ where: { id: input.ledgerId } })
+      }),
   }),
   template: t.router({
     create: t.procedure
