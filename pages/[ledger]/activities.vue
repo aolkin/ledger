@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import {
-  skipToken,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { DataTableRowExpandEvent } from 'primevue/datatable'
-import { queryMeta } from '../../clients/queries'
-import LoadingBars from '../../components/LoadingBars.vue'
-import type { CreateTemplateInput } from '../../worker/router-types'
+import QueryLoader from '../../components/QueryLoader.vue'
+import type {
+  CreateTemplateInput,
+  LedgerTemplate,
+  UpdateTemplateInput,
+} from '../../worker/router-types'
 
-const { ledger: slug } = defineProps<{ ledger: string }>()
+const { ledger: ledgerId } = defineProps<{ ledger: string }>()
 
 useHead({
   title: 'Configuration',
@@ -18,53 +16,33 @@ useHead({
 
 const trpc = useTrpc()
 
-const route = useRoute()
-const ledger = useLedgerStore()
 const confirm = useConfirm()
 const queryClient = useQueryClient()
 
-const metaQuery = useQuery(queryMeta(slug))
-const ledgerUuid = computed(() => metaQuery.data?.value?.id)
-
-const queryFn = computed(() => {
-  const ledgerId = ledgerUuid.value
-  return typeof ledgerId === 'string'
-    ? () => trpc.template.getForLedger.query({ ledgerId })
-    : skipToken
+const templateQuery = useQuery({
+  queryKey: ['templates', ledgerId],
+  queryFn: () => trpc.template.getForLedger.query({ ledgerId }),
 })
-const {
-  isPending,
-  isSuccess,
-  isError,
-  data: templates,
-} = useQuery({
-  queryKey: ['templates', ledgerUuid.value],
-  queryFn,
-})
+const { isFetching, isSuccess, data: templates } = templateQuery
 
 const expandedRows = ref<Record<string, boolean>>({})
 const expandedRowGroups = ref()
-const rowMeta = ref<
-  Record<ObjectId, { dirty: boolean; data?: LedgerTemplate }>
->({})
+const rowMeta = ref<Record<string, { dirty: boolean; data?: LedgerTemplate }>>(
+  {},
+)
 
 const onRowExpand = (event: DataTableRowExpandEvent) => {
-  console.log(event.data)
   rowMeta.value[event.data.id] = { dirty: false }
 }
 
 const addMutation = useMutation({
   mutationFn: async (data: Omit<CreateTemplateInput, 'ledgerId'>) => {
-    const ledgerId = ledgerUuid.value
-    if (!ledgerId) {
-      throw new Error()
-    }
     return await trpc.template.create.mutate({ ...data, ledgerId })
   },
   onSuccess: (data) => {
     console.log(data)
     queryClient.setQueryData(
-      ['templates', ledgerUuid.value],
+      ['templates', ledgerId],
       [...(templates.value ?? []), data],
     )
     expandedRows.value = { [data.id]: true }
@@ -82,8 +60,15 @@ const addActivity = () => {
 }
 
 const removeMutation = useMutation({
-  mutationFn: async (data: { id: string }) => {
-    trpc.template.delete.mutate({ ...data, ledgerId: ledgerUuid.value })
+  mutationFn: async (templateId: string) => {
+    await trpc.template.delete.mutate({ id: templateId, ledgerId })
+    return templateId
+  },
+  onSuccess: (templateId) => {
+    queryClient.setQueryData(
+      ['templates', ledgerId],
+      templates.value?.filter((item) => item.id !== templateId),
+    )
   },
 })
 
@@ -102,23 +87,32 @@ const removeActivity = (item: LedgerTemplate) => {
       severity: 'danger',
     },
     accept: () => {
-      trpc.template.delete.mutate({ id: item.id, ledgerId: ledgerUuid.value })
+      removeMutation.mutate(item.id)
     },
   })
 }
 
+const updateMutation = useMutation({
+  mutationFn: async (data: UpdateTemplateInput) => {
+    await trpc.template.update.mutate(data)
+    return data
+  },
+  onSuccess: (data) => {
+    queryClient.setQueryData(
+      ['templates', ledgerId],
+      templates.value?.map((item) => (item.id === data.id ? data : item)),
+    )
+  },
+})
 const updateActivity = (activity: LedgerTemplate) => {
-  ledger.updateTemplate(activity.id, activity)
+  updateMutation.mutate(activity)
   delete expandedRows.value[activity.id]
 }
 </script>
 
 <template>
-  <div>
-    <LoadingBars v-if="isPending" />
-    <div v-else-if="isError">Error!</div>
+  <QueryLoader :query="templateQuery">
     <DataTable
-      v-else
       :value="templates"
       v-model:expanded-rows="expandedRows"
       v-model:expanded-row-groups="expandedRowGroups"
@@ -170,8 +164,12 @@ const updateActivity = (activity: LedgerTemplate) => {
         />
       </template>
     </DataTable>
-    <FloatingPlusButton @click="addActivity" v-if="isSuccess" />
-  </div>
+    <FloatingPlusButton
+      @click="addActivity"
+      v-if="isSuccess"
+      :loading="isFetching || addMutation.isPending.value"
+    />
+  </QueryLoader>
 </template>
 
 <style scoped>

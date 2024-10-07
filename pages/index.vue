@@ -14,7 +14,7 @@ const confirm = useConfirm()
 
 const {
   isPending,
-  isError,
+  isError: metaError,
   isSuccess,
   data: ledgers,
 } = useQuery({
@@ -45,12 +45,12 @@ function addLedger() {
 
 <template>
   <LoadingBars v-if="isPending" />
-  <div v-else-if="isError">Error!</div>
+  <div v-else-if="metaError">Error!</div>
   <DataTable
     v-else
     :value="ledgers"
     v-model:expanded-rows="expandedRows"
-    sort-field="sort"
+    sort-field="startDate"
     :sort-order="-1"
     data-key="id"
     class="ledger-table"
@@ -60,7 +60,7 @@ function addLedger() {
       <template #body="slotProps">
         <Button
           as="router-link"
-          :to="{ name: 'ledger', params: { ledger: slotProps.data.slug } }"
+          :to="{ name: 'ledger', params: { ledger: slotProps.data.id } }"
           text
         >
           {{ slotProps.data.name }}

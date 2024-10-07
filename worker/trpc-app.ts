@@ -4,8 +4,8 @@ import { inferAsyncReturnType, initTRPC } from '@trpc/server'
 import superjson from 'superjson'
 import { z } from 'zod'
 
-const slugLength = 10
-const createSlug = cuid2.init({ length: slugLength })
+const idLength = 16
+const createId = cuid2.init({ length: idLength })
 
 type Context = inferAsyncReturnType<() => { prisma: PrismaClient }>
 const t = initTRPC.context<Context>().create({
@@ -28,12 +28,10 @@ const t = initTRPC.context<Context>().create({
   },
 })
 // Define your data models using Zod for validation
-const SlugSchema = z.string().min(slugLength).max(slugLength)
-const ObjectIdSchema = z.string()
+const ObjectIdSchema = z.string().min(idLength).max(idLength)
 const ColorSchema = z.string()
 const LedgerMetaSchema = z.object({
   id: ObjectIdSchema,
-  slug: SlugSchema,
   name: z.string(),
   startDate: z.date(),
   endDate: z.date(),
@@ -45,8 +43,8 @@ const LedgerTemplateSchema = z.object({
   value: z.number(),
   unit: z.string(),
   group: z.string(),
-  color: ColorSchema.optional(),
-  notes: z.string().optional(),
+  color: ColorSchema.nullish(),
+  notes: z.string().nullish(),
 })
 const LedgerEntrySchema = LedgerTemplateSchema.extend({
   multiplier: z.number(),
@@ -64,28 +62,27 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().extend({
   id: ObjectIdSchema,
 })
 
+const LedgerIdSchema = z.object({ ledgerId: ObjectIdSchema })
+const LedgerObjectIdsSchema = LedgerIdSchema.and(
+  z.object({ id: ObjectIdSchema }),
+)
+
 // Define your tRPC procedures
 export const appRouter = t.router({
   ledger: t.router({
     list: t.procedure.query(async ({ ctx }) =>
       ctx.prisma.ledgerMeta.findMany(),
     ),
-    get: t.procedure
-      .input(
-        z
-          .object({ ledgerId: ObjectIdSchema })
-          .or(z.object({ slug: SlugSchema })),
-      )
-      .query(async ({ input, ctx }) =>
-        ctx.prisma.ledgerMeta.findUniqueOrThrow({
-          where: 'ledgerId' in input ? { id: input.ledgerId } : input,
-        }),
-      ),
+    get: t.procedure.input(LedgerIdSchema).query(async ({ input, ctx }) =>
+      ctx.prisma.ledgerMeta.findUniqueOrThrow({
+        where: { id: input.ledgerId },
+      }),
+    ),
     create: t.procedure
-      .input(LedgerMetaSchema.omit({ id: true, slug: true }))
+      .input(LedgerMetaSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) =>
         ctx.prisma.ledgerMeta.create({
-          data: { ...input, slug: createSlug() },
+          data: { ...input, id: createId() },
         }),
       ),
   }),
@@ -96,6 +93,7 @@ export const appRouter = t.router({
         return await ctx.prisma.ledgerTemplate.create({
           data: {
             ...input,
+            id: createId(),
             updates: {
               create: [
                 {
@@ -111,26 +109,24 @@ export const appRouter = t.router({
       }),
 
     getForLedger: t.procedure
-      .input(z.object({ ledgerId: ObjectIdSchema }))
-      .query(async ({ input, ctx }) => {
-        return ctx.prisma.ledgerTemplate.findMany({
-          where: { ledgerId: input.ledgerId },
-        })
-      }),
+      .input(LedgerIdSchema)
+      .query(async ({ input, ctx }) =>
+        ctx.prisma.ledgerTemplate.findMany({ where: input }),
+      ),
 
     // Partial update for LedgerTemplate
     update: t.procedure
       .input(PartialLedgerTemplateSchema)
       .mutation(async ({ input, ctx }) => {
-        const { id, ...updateData } = input
+        const { id, ledgerId, ...updateData } = input
         return await ctx.prisma.ledgerTemplate.update({
-          where: { id },
+          where: { id, ledgerId },
           data: {
             ...updateData,
             updates: {
               create: [
                 {
-                  ledgerId: input.ledgerId,
+                  ledgerId,
                   action: 'update',
                   timestamp: new Date(),
                 },
@@ -142,7 +138,7 @@ export const appRouter = t.router({
       }),
 
     delete: t.procedure
-      .input(z.object({ ledgerId: ObjectIdSchema, id: ObjectIdSchema }))
+      .input(LedgerObjectIdsSchema)
       .mutation(
         async ({ input, ctx }) =>
           await ctx.prisma.ledgerTemplate.delete({ where: input }),

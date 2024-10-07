@@ -1,10 +1,11 @@
 -- CreateTable
 CREATE TABLE "LedgerMeta" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "startDate" DATETIME NOT NULL,
-    "endDate" DATETIME NOT NULL
+    "endDate" DATETIME NOT NULL,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated" DATETIME NOT NULL
 );
 
 -- CreateTable
@@ -17,6 +18,7 @@ CREATE TABLE "LedgerTemplate" (
     "group" TEXT NOT NULL,
     "color" TEXT,
     "notes" TEXT,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated" DATETIME NOT NULL,
     CONSTRAINT "LedgerTemplate_ledgerId_fkey" FOREIGN KEY ("ledgerId") REFERENCES "LedgerMeta" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -32,7 +34,8 @@ CREATE TABLE "LedgerEntry" (
     "color" TEXT,
     "notes" TEXT,
     "multiplier" REAL NOT NULL,
-    "timestamp" DATETIME NOT NULL,
+    "timestamp" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated" DATETIME NOT NULL,
     "author" TEXT NOT NULL,
     CONSTRAINT "LedgerEntry_ledgerId_fkey" FOREIGN KEY ("ledgerId") REFERENCES "LedgerMeta" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
@@ -43,7 +46,7 @@ CREATE TABLE "UpdateLog" (
     "ledgerId" TEXT NOT NULL,
     "id" TEXT NOT NULL PRIMARY KEY,
     "action" TEXT NOT NULL,
-    "timestamp" DATETIME NOT NULL,
+    "timestamp" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ledgerTemplateId" TEXT,
     "ledgerEntryId" TEXT,
     CONSTRAINT "UpdateLog_ledgerId_fkey" FOREIGN KEY ("ledgerId") REFERENCES "LedgerMeta" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -53,12 +56,6 @@ CREATE TABLE "UpdateLog" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LedgerMeta_id_key" ON "LedgerMeta"("id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "LedgerMeta_slug_key" ON "LedgerMeta"("slug");
-
--- CreateIndex
-CREATE INDEX "LedgerMeta_slug_idx" ON "LedgerMeta"("slug");
 
 -- CreateIndex
 CREATE INDEX "LedgerTemplate_ledgerId_idx" ON "LedgerTemplate"("ledgerId");

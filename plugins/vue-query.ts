@@ -20,7 +20,7 @@ export default defineNuxtPlugin((nuxt) => {
             if (error.data?.code === 'NOT_FOUND') {
               return false
             } else {
-              console.log('TRPCClientError', error, error.data?.code)
+              console.error('TRPCClientError', error, error.data?.code)
             }
           } else {
             console.error('Unexpected error', error)

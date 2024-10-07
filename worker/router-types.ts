@@ -10,6 +10,9 @@ export type CreateLedgerOutput = RouterOutput['ledger']['create']
 export type ListLedgersOutput = RouterOutput['ledger']['list']
 
 export type CreateTemplateInput = RouterInput['template']['create']
+export type ListTemplatesOutput = RouterOutput['template']['getForLedger']
+export type LedgerTemplate = ListTemplatesOutput[0]
+export type UpdateTemplateInput = RouterInput['template']['update']
 
 export function isTRPCClientError(
   cause: Error,

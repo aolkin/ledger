@@ -5,18 +5,18 @@ import LoadingBars from '../components/LoadingBars.vue'
 
 const route = useRoute()
 const trpc = useTrpc()
-const pathSlug = computed(() => {
+const pathLedgerId = computed(() => {
   console.log(route.params, route.path)
   return route.params.ledger
 })
 const queryFn = computed(() => {
-  const slug = pathSlug.value
-  return typeof slug === 'string'
-    ? () => trpc.ledger.get.query({ slug })
+  const ledgerId = pathLedgerId.value
+  return typeof ledgerId === 'string'
+    ? () => trpc.ledger.get.query({ ledgerId })
     : skipToken
 })
 const { isPending, isError, isSuccess, data, error } = useQuery({
-  queryKey: ['meta', { id: pathSlug.value }],
+  queryKey: ['meta', { id: pathLedgerId.value }],
   queryFn,
 })
 </script>
@@ -32,12 +32,12 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
           text
         />
       </template>
-      <template #center v-if="pathSlug">
+      <template #center v-if="pathLedgerId">
         <Button
           as="router-link"
           :to="{
             name: 'ledger',
-            params: { ledger: pathSlug },
+            params: { ledger: pathLedgerId },
           }"
           text
         >
@@ -45,20 +45,20 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
           <span>{{ data ? data.name : 'Loading...' }}</span>
         </Button>
       </template>
-      <template #end v-if="pathSlug">
+      <template #end v-if="pathLedgerId">
         <Button
           as="router-link"
           :to="{
             name: 'ledger-activities',
-            params: { ledger: pathSlug },
+            params: { ledger: pathLedgerId },
           }"
           icon="pi pi-cog"
           text
         />
       </template>
     </Toolbar>
-    <LoadingBars v-if="pathSlug && isPending" />
-    <div v-else-if="pathSlug && isError">
+    <LoadingBars v-if="pathLedgerId && isPending" />
+    <div v-else-if="pathLedgerId && isError">
       <Message severity="error">Error! {{ error }}</Message>
     </div>
     <slot v-else />

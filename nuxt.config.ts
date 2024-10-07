@@ -11,7 +11,8 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/tailwindcss',
     'nuxt-lodash',
-    '@formkit/auto-animate',
+    '@vueuse/nuxt',
+    '@formkit/auto-animate/nuxt',
   ],
   lodash: {
     prefix: '_',
