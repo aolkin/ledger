@@ -1,183 +1,52 @@
 <script setup lang="ts">
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import type { DataTableRowExpandEvent } from 'primevue/datatable'
-import QueryLoader from '../../components/QueryLoader.vue'
-import type {
-  CreateTemplateInput,
-  LedgerTemplate,
-  UpdateTemplateInput,
-} from '../../worker/router-types'
+const { ledger } = defineProps<{ ledger: string }>()
+const router = useRouter()
+const route = useRoute()
 
-const { ledger: ledgerId } = defineProps<{ ledger: string }>()
-
-useHead({
-  title: 'Configuration',
-})
-
-const trpc = useTrpc()
-
-const confirm = useConfirm()
-const queryClient = useQueryClient()
-
-const templateQuery = useQuery({
-  queryKey: ['templates', ledgerId],
-  queryFn: () => trpc.template.getForLedger.query({ ledgerId }),
-})
-const { isFetching, isSuccess, data: templates } = templateQuery
-
-const expandedRows = ref<Record<string, boolean>>({})
-const expandedRowGroups = ref()
-const rowMeta = ref<Record<string, { dirty: boolean; data?: LedgerTemplate }>>(
-  {},
+const drawerVisible = ref(false)
+watch(
+  () => route.matched.length,
+  (newRoutes, oldRoutes) => {
+    if (newRoutes !== oldRoutes) {
+      drawerVisible.value = newRoutes > 1
+    }
+  },
+  { immediate: true },
 )
 
-const onRowExpand = (event: DataTableRowExpandEvent) => {
-  rowMeta.value[event.data.id] = { dirty: false }
-}
+const total = computed(() => 25)
+const today = computed(() => 2.5)
 
-const addMutation = useMutation({
-  mutationFn: async (data: Omit<CreateTemplateInput, 'ledgerId'>) => {
-    return await trpc.template.create.mutate({ ...data, ledgerId })
-  },
-  onSuccess: (data) => {
-    console.log(data)
-    queryClient.setQueryData(
-      ['templates', ledgerId],
-      [...(templates.value ?? []), data],
-    )
-    expandedRows.value = { [data.id]: true }
-    expandedRowGroups.value = ['']
-    rowMeta.value[data.id] = { dirty: false }
-  },
+// watch(ledger.entries, () => {
+//   if (drawerVisible.value) {
+//     router.push(route.matched[0])
+//   }
+// })
+watch(drawerVisible, (value) => {
+  if (!value && route.matched.length > 1) {
+    router.back()
+  }
 })
-const addActivity = () => {
-  addMutation.mutate({
-    title: `New Activity ${templates.value?.length}`,
-    value: 1,
-    unit: 'time',
-    group: '',
-  })
-}
-
-const removeMutation = useMutation({
-  mutationFn: async (templateId: string) => {
-    await trpc.template.delete.mutate({ id: templateId, ledgerId })
-    return templateId
-  },
-  onSuccess: (templateId) => {
-    queryClient.setQueryData(
-      ['templates', ledgerId],
-      templates.value?.filter((item) => item.id !== templateId),
-    )
-  },
-})
-
-const removeActivity = (item: LedgerTemplate) => {
-  confirm.require({
-    message: `Are you sure you want to delete ${item.title}?`,
-    header: 'Delete Activity',
-    icon: 'pi pi-trash',
-    rejectProps: {
-      label: 'Cancel',
-      severity: 'secondary',
-      outlined: true,
-    },
-    acceptProps: {
-      label: 'Delete',
-      severity: 'danger',
-    },
-    accept: () => {
-      removeMutation.mutate(item.id)
-    },
-  })
-}
-
-const updateMutation = useMutation({
-  mutationFn: async (data: UpdateTemplateInput) => {
-    await trpc.template.update.mutate(data)
-    return data
-  },
-  onSuccess: (data) => {
-    queryClient.setQueryData(
-      ['templates', ledgerId],
-      templates.value?.map((item) => (item.id === data.id ? data : item)),
-    )
-  },
-})
-const updateActivity = (activity: LedgerTemplate) => {
-  updateMutation.mutate(activity)
-  delete expandedRows.value[activity.id]
-}
 </script>
 
 <template>
-  <QueryLoader :query="templateQuery">
-    <DataTable
-      :value="templates"
-      v-model:expanded-rows="expandedRows"
-      v-model:expanded-row-groups="expandedRowGroups"
-      @row-expand="onRowExpand"
-      expandable-row-groups
-      row-group-mode="subheader"
-      group-rows-by="group"
-      sort-field="group"
-      :sort-order="1"
-      data-key="id"
-      class="activity-table mb-20"
+  <div>
+    <div class="w-full flex flex-col my-5 text-center gap-2">
+      <div class="text-4xl">Total: {{ total }} pts</div>
+      <div class="text-3xl">Today: {{ today }} pts</div>
+    </div>
+    <LedgerTable class="mb-20" />
+    <Drawer
+      v-model:visible="drawerVisible"
+      :header="route.meta.title"
+      position="bottom"
+      class="!h-[90vh]"
     >
-      <template #groupheader="slotProps">
-        <b class="align-top ml-2">{{
-          slotProps.data.group || 'Default Group'
-        }}</b>
-      </template>
-      <Column expander class="button-column" />
-      <Column field="title">
-        <template #body="slotProps">
-          <div
-            class="cursor-pointer"
-            @click="
-              expandedRows = expandedRows[slotProps.data.id]
-                ? {}
-                : { [slotProps.data.id]: false }
-            "
-          >
-            {{ slotProps.data.title }}
-          </div>
-        </template>
-      </Column>
-      <Column class="button-column">
-        <template #body="slotProps">
-          <Button
-            icon="pi pi-trash"
-            severity="danger"
-            size="small"
-            @click="removeActivity(slotProps.data)"
-          />
-        </template>
-      </Column>
-      <template #expansion="slotProps">
-        <ActivityEditor
-          :template="slotProps.data"
-          @update:dirty="rowMeta[slotProps.data.id].dirty = $event.data"
-          @update="rowMeta[slotProps.data.id].data = $event.data"
-          @save="updateActivity"
-        />
-      </template>
-    </DataTable>
+      <NuxtPage />
+    </Drawer>
     <FloatingPlusButton
-      @click="addActivity"
-      v-if="isSuccess"
-      :loading="isFetching || addMutation.isPending.value"
+      as="router-link"
+      :to="{ name: 'ledger-activities-record', params: { id: ledger } }"
     />
-  </QueryLoader>
+  </div>
 </template>
-
-<style scoped>
-.activity-table :deep(.button-column) {
-  width: calc(var(--p-button-icon-only-width) + 8px);
-}
-
-.activity-table :deep(thead) {
-  display: none;
-}
-</style>

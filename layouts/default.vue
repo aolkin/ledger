@@ -36,7 +36,7 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
         <Button
           as="router-link"
           :to="{
-            name: 'ledger',
+            name: 'ledger-activities',
             params: { ledger: pathLedgerId },
           }"
           text
@@ -49,7 +49,7 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
         <Button
           as="router-link"
           :to="{
-            name: 'ledger-activities',
+            name: 'ledger-manage',
             params: { ledger: pathLedgerId },
           }"
           icon="pi pi-cog"

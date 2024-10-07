@@ -60,7 +60,10 @@ function addLedger() {
       <template #body="slotProps">
         <Button
           as="router-link"
-          :to="{ name: 'ledger', params: { ledger: slotProps.data.id } }"
+          :to="{
+            name: 'ledger-activities',
+            params: { ledger: slotProps.data.id },
+          }"
           text
         >
           {{ slotProps.data.name }}

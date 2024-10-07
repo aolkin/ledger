@@ -16,7 +16,9 @@ const { query } = defineProps<{
   <div v-else-if="query.isError.value">
     <Message severity="error"><b>Error:</b> {{ query.error }}</Message>
   </div>
-  <slot v-else />
+  <div v-else>
+    <slot />
+  </div>
 </template>
 
 <style scoped></style>

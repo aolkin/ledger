@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import RecorderActivity from './RecorderActivity.vue'
 
-const ledger = useLedgerStore()
+const { ledgerId } = defineProps<{ ledgerId: string }>()
+
+const templateQuery = useQueryTemplates(ledgerId)
 </script>
 
 <template>
   <DataView
-    :value="ledger.templates"
+    :value="templateQuery.data.value"
     layout="grid"
     sort-field="group"
-    sort-order="1"
+    :sort-order="1"
   >
     <template #grid="slotProps">
       <div class="grid grid-cols-12 gap-4">
