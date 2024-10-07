@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { LedgerEntry } from '~/worker/router-types'
+
 const { ledger } = defineProps<{ ledger: string }>()
 const router = useRouter()
 const route = useRoute()
@@ -14,14 +16,24 @@ watch(
   { immediate: true },
 )
 
-const total = computed(() => 25)
-const today = computed(() => 2.5)
+const ledgerQuery = useQueryEntries(ledger)
 
-// watch(ledger.entries, () => {
-//   if (drawerVisible.value) {
-//     router.push(route.matched[0])
-//   }
-// })
+const sumEntries = (entries: LedgerEntry[] | undefined): number =>
+  (entries ?? []).reduce((acc, entry) => acc + entry.value, 0)
+
+const now = useNow({ interval: 30 * 1000 })
+const isToday = (date: Date): boolean =>
+  date.getDate() === now.value.getDate() &&
+  date.getMonth() === now.value.getMonth() &&
+  date.getFullYear() === now.value.getFullYear()
+
+const total = computed(() => sumEntries(ledgerQuery.data.value))
+const today = computed(() =>
+  sumEntries(
+    ledgerQuery.data.value?.filter(({ timestamp }) => isToday(timestamp)),
+  ),
+)
+
 watch(drawerVisible, (value) => {
   if (!value && route.matched.length > 1) {
     router.back()
@@ -30,12 +42,12 @@ watch(drawerVisible, (value) => {
 </script>
 
 <template>
-  <div>
+  <QueryLoader :query="ledgerQuery">
     <div class="w-full flex flex-col my-5 text-center gap-2">
       <div class="text-4xl">Total: {{ total }} pts</div>
       <div class="text-3xl">Today: {{ today }} pts</div>
     </div>
-    <LedgerTable class="mb-20" />
+    <LedgerTable class="mb-20" :ledger="ledger" />
     <Drawer
       v-model:visible="drawerVisible"
       :header="route.meta.title"
@@ -46,7 +58,7 @@ watch(drawerVisible, (value) => {
     </Drawer>
     <FloatingPlusButton
       as="router-link"
-      :to="{ name: 'ledger-activities-record', params: { id: ledger } }"
+      :to="{ name: 'ledger-activities-record' }"
     />
-  </div>
+  </QueryLoader>
 </template>

@@ -1,28 +1,36 @@
 <script setup lang="ts">
-import { diffMinutes, format, sameDay, sameHour } from '@formkit/tempo'
-import type { LedgerEntry, ObjectId } from '../stores/ledger'
+import { diffMinutes, format, sameDay, diffHours } from '@formkit/tempo'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import type { LedgerEntry } from '../worker/router-types'
 
-const ledger = useLedgerStore()
+const { ledger } = defineProps<{ ledger: string }>()
 const confirm = useConfirm()
 
+const trpc = useTrpc()
+const queryClient = useQueryClient()
+const ledgerQuery = useQueryEntries(ledger)
+const now = useNow({ interval: 30 * 1000 })
+
 const formatTimestamp = (date: Date, long?: boolean): string => {
-  const now = new Date()
-  if (sameDay(now, date)) {
-    const minutesAgo = diffMinutes(now, date)
-    if (minutesAgo < 1) {
-      return 'just now'
-    } else if (minutesAgo < 60) {
-      return `${minutesAgo} min${minutesAgo > 1 ? 's' : ''}${long ? ' ago' : ''}`
-    }
+  const minutesAgo = diffMinutes(now.value, date)
+  if (minutesAgo < 1) {
+    return 'just now'
+  } else if (minutesAgo < 60) {
+    return `${minutesAgo} min${minutesAgo > 1 ? 's' : ''}${long ? ' ago' : ''}`
+  } else if (minutesAgo < 60 * 24) {
+    const hoursAgo = diffHours(now.value, date)
+    return `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''}${long ? ' ago' : ''}`
+  } else if (sameDay(now.value, date)) {
     return format(date, 'h:mm a')
+  } else {
+    return format(date, long ? { date: 'medium', time: 'medium' } : 'hA M/DD')
   }
-  return format(date, long ? { date: 'medium', time: 'medium' } : 'hA M/DD')
 }
 
 interface TableProps {
   field: string
   order: number
-  expanded?: ObjectId
+  expanded?: string
 }
 
 const tableProps: TableProps = reactive({
@@ -47,6 +55,19 @@ const sortIcon = computed(() => {
     : 'pi-sort-amount-up-alt'
 })
 
+const removeMutation = useMutation({
+  mutationFn: async (entryId: string) => {
+    await trpc.entry.delete.mutate({ id: entryId, ledgerId: ledger })
+    return entryId
+  },
+  onSuccess: (entryId) => {
+    queryClient.setQueryData(
+      entriesQueryKey(ledger),
+      ledgerQuery.data.value?.filter((item) => item.id !== entryId),
+    )
+  },
+})
+
 const removeEntry = (item: LedgerEntry) => {
   confirm.require({
     message: `Are you sure you want to delete ${item.title} from ${formatTimestamp(item.timestamp, true)}?`,
@@ -62,7 +83,7 @@ const removeEntry = (item: LedgerEntry) => {
       severity: 'danger',
     },
     accept: () => {
-      ledger.removeEntry(item.id)
+      removeMutation.mutate(item.id)
     },
   })
 }
@@ -70,7 +91,7 @@ const removeEntry = (item: LedgerEntry) => {
 
 <template>
   <DataView
-    :value="ledger.entries"
+    :value="ledgerQuery.data.value"
     :sort-field="tableProps.field"
     :sort-order="tableProps.order"
   >

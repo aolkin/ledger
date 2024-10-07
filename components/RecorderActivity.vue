@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { useToast } from '#imports'
-import type { LedgerTemplate } from '../stores/ledger'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import type { CreateEntryInput, LedgerTemplate } from '../worker/router-types'
 
 const { item } = defineProps<{
   item: LedgerTemplate
 }>()
 
-const ledger = useLedgerStore()
-
+const router = useRouter()
+const trpc = useTrpc()
 const toast = useToast()
 
 const adding = ref(false)
@@ -15,16 +15,35 @@ const adding = ref(false)
 const multiplier = ref(1)
 const total = computed(() => multiplier.value * item.value)
 
-const addActivity = () => {
-  ledger.addEntry(item, multiplier.value)
-  toast.add({
-    severity: 'success',
-    summary: `Recorded ${item.title}`,
-    detail: `${item.unit} x${multiplier.value} = ${total.value} pts`,
-    life: 3000,
+const queryClient = useQueryClient()
+const ledgerQuery = useQueryEntries(item.ledgerId)
+const addMutation = useMutation({
+  mutationFn: (data: CreateEntryInput) => trpc.entry.create.mutate(data),
+  onSuccess: (data) => {
+    console.log(data, ledgerQuery.data.value)
+    if (ledgerQuery.data.value !== undefined) {
+      queryClient.setQueryData(entriesQueryKey(item.ledgerId), [
+        ...ledgerQuery.data.value,
+        data,
+      ])
+    }
+    toast.add({
+      severity: 'success',
+      summary: `Recorded ${item.title}`,
+      detail: `${item.unit} x${multiplier.value} = ${total.value} pts`,
+      life: 3000,
+    })
+    adding.value = false
+    router.push({ name: 'ledger-activities' })
+  },
+})
+
+const addActivity = () =>
+  addMutation.mutate({
+    ...item,
+    multiplier: multiplier.value,
+    value: total.value,
   })
-  adding.value = false
-}
 </script>
 
 <template>

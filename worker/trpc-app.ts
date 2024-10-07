@@ -48,23 +48,18 @@ const LedgerTemplateSchema = z.object({
 })
 const LedgerEntrySchema = LedgerTemplateSchema.extend({
   multiplier: z.number(),
-  value: z.number(),
-  timestamp: z.date(),
-  author: z.string(),
+  timestamp: z.date().optional(),
 })
 // Partial update schemas
-const PartialLedgerTemplateSchema = LedgerTemplateSchema.partial().extend({
-  ledgerId: ObjectIdSchema,
-  id: ObjectIdSchema,
-})
-const PartialLedgerEntrySchema = LedgerEntrySchema.partial().extend({
-  ledgerId: ObjectIdSchema,
-  id: ObjectIdSchema,
-})
-
 const LedgerIdSchema = z.object({ ledgerId: ObjectIdSchema })
 const LedgerObjectIdsSchema = LedgerIdSchema.and(
   z.object({ id: ObjectIdSchema }),
+)
+const PartialLedgerTemplateSchema = LedgerTemplateSchema.partial().and(
+  LedgerObjectIdsSchema,
+)
+const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
+  LedgerObjectIdsSchema,
 )
 
 // Define your tRPC procedures
@@ -99,12 +94,11 @@ export const appRouter = t.router({
                 {
                   ledgerId: input.ledgerId,
                   action: 'create',
-                  timestamp: new Date(),
                 },
               ],
             },
           },
-          //include: { updates: true },
+          // include: { updates: true },
         })
       }),
 
@@ -128,12 +122,11 @@ export const appRouter = t.router({
                 {
                   ledgerId,
                   action: 'update',
-                  timestamp: new Date(),
                 },
               ],
             },
           },
-          include: { updates: true },
+          // include: { updates: true },
         })
       }),
 
@@ -144,57 +137,65 @@ export const appRouter = t.router({
           await ctx.prisma.ledgerTemplate.delete({ where: input }),
       ),
   }),
-  // LedgerEntry procedures
-  createLedgerEntry: t.procedure
-    .input(LedgerEntrySchema)
-    .mutation(async ({ input, ctx }) => {
-      return await ctx.prisma.ledgerEntry.create({
-        data: {
-          ...input,
-          updates: {
-            create: [
-              {
-                ledgerId: input.ledgerId,
-                action: 'create',
-                timestamp: new Date(),
-              },
-            ],
+  entry: t.router({
+    // LedgerEntry procedures
+    create: t.procedure
+      .input(LedgerEntrySchema.omit({ id: true }))
+      .mutation(async ({ input, ctx }) => {
+        return await ctx.prisma.ledgerEntry.create({
+          data: {
+            ...input,
+            id: createId(),
+            author: 'default',
+            updates: {
+              create: [
+                {
+                  ledgerId: input.ledgerId,
+                  action: 'create',
+                },
+              ],
+            },
           },
-        },
-        include: { updates: true },
-      })
-    }),
+          // include: { updates: true },
+        })
+      }),
 
-  getLedgerEntries: t.procedure
-    .input(z.object({ ledgerId: ObjectIdSchema }))
-    .query(async ({ input, ctx }) => {
-      return ctx.prisma.ledgerEntry.findMany({
-        where: { ledgerId: input.ledgerId },
-      })
-    }),
+    getForLedger: t.procedure
+      .input(LedgerIdSchema)
+      .query(async ({ input, ctx }) => {
+        return ctx.prisma.ledgerEntry.findMany({
+          where: input,
+        })
+      }),
 
-  // Partial update for LedgerEntry
-  updateLedgerEntry: t.procedure
-    .input(PartialLedgerEntrySchema)
-    .mutation(async ({ input, ctx }) => {
-      const { id, ...updateData } = input
-      return await ctx.prisma.ledgerEntry.update({
-        where: { id },
-        data: {
-          ...updateData,
-          updates: {
-            create: [
-              {
-                ledgerId: input.ledgerId,
-                action: 'update',
-                timestamp: new Date(),
-              },
-            ],
+    // Partial update for LedgerEntry
+    update: t.procedure
+      .input(PartialLedgerEntrySchema)
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updateData } = input
+        return await ctx.prisma.ledgerEntry.update({
+          where: { id },
+          data: {
+            ...updateData,
+            updates: {
+              create: [
+                {
+                  ledgerId: input.ledgerId,
+                  action: 'update',
+                },
+              ],
+            },
           },
-        },
-        include: { updates: true },
-      })
-    }),
+          // include: { updates: true },
+        })
+      }),
+
+    delete: t.procedure
+      .input(LedgerObjectIdsSchema)
+      .mutation(async ({ input, ctx }) => {
+        return await ctx.prisma.ledgerEntry.delete({ where: input })
+      }),
+  }),
 
   // Get updates since a given timestamp
   getUpdatesSince: t.procedure

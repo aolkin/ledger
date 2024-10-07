@@ -33,15 +33,14 @@ const onRowExpand = (event: DataTableRowExpandEvent) => {
 }
 
 const addMutation = useMutation({
-  mutationFn: async (data: Omit<CreateTemplateInput, 'ledgerId'>) => {
-    return await trpc.template.create.mutate({ ...data, ledgerId })
-  },
+  mutationFn: (data: Omit<CreateTemplateInput, 'ledgerId'>) =>
+    trpc.template.create.mutate({ ...data, ledgerId }),
   onSuccess: (data) => {
     console.log(data)
-    queryClient.setQueryData(
-      ['templates', ledgerId],
-      [...(templates.value ?? []), data],
-    )
+    queryClient.setQueryData(templatesQueryKey(ledgerId), [
+      ...(templates.value ?? []),
+      data,
+    ])
     expandedRows.value = { [data.id]: true }
     expandedRowGroups.value = ['']
     rowMeta.value[data.id] = { dirty: false }
@@ -63,7 +62,7 @@ const removeMutation = useMutation({
   },
   onSuccess: (templateId) => {
     queryClient.setQueryData(
-      ['templates', ledgerId],
+      templatesQueryKey(ledgerId),
       templates.value?.filter((item) => item.id !== templateId),
     )
   },
@@ -96,7 +95,7 @@ const updateMutation = useMutation({
   },
   onSuccess: (data) => {
     queryClient.setQueryData(
-      ['templates', ledgerId],
+      templatesQueryKey(ledgerId),
       templates.value?.map((item) => (item.id === data.id ? data : item)),
     )
   },
