@@ -95,6 +95,18 @@ const removeEntry = (item: LedgerEntry) => {
     :sort-field="tableProps.field"
     :sort-order="tableProps.order"
   >
+    <template #empty>
+      <div class="p-4 text-center">
+        No activity recorded!
+        <Button
+          as="router-link"
+          link
+          :to="{ name: 'ledger-activities-record' }"
+        >
+          Record some.
+        </Button>
+      </div>
+    </template>
     <template #list="slotProps">
       <div class="grid grid-cols-[auto_auto_auto]">
         <div

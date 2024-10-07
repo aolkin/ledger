@@ -28,6 +28,17 @@ const rowMeta = ref<Record<string, { dirty: boolean; data?: LedgerTemplate }>>(
   {},
 )
 
+const groups = computed(() =>
+  getUnique(templates.value, (template) => template.group),
+)
+
+watchEffect(() => {
+  console.log(expandedRowGroups.value, groups.value)
+  if (!expandedRowGroups.value && groups.value.length === 1) {
+    expandedRowGroups.value = groups.value
+  }
+})
+
 const onRowExpand = (event: DataTableRowExpandEvent) => {
   rowMeta.value[event.data.id] = { dirty: false }
 }
@@ -48,7 +59,7 @@ const addMutation = useMutation({
 })
 const addActivity = () => {
   addMutation.mutate({
-    title: `New Activity ${templates.value?.length}`,
+    title: `New Activity ${templates.value?.length + 1}`,
     value: 1,
     unit: 'time',
     group: '',
@@ -121,6 +132,12 @@ const updateTemplate = (template: LedgerTemplate) => {
       data-key="id"
       class="template-table mb-20"
     >
+      <template #empty>
+        <div class="p-4 text-center">
+          No activities created.
+          <Button link @click="addActivity">Add one.</Button>
+        </div>
+      </template>
       <template #groupheader="slotProps">
         <b class="align-top ml-2">{{
           slotProps.data.group || 'Default Group'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AutoCompleteCompleteEvent } from 'primevue/autocomplete'
 import type { Ref } from 'vue'
-import type { LedgerTemplate } from '../stores/ledger'
+import type { LedgerTemplate } from '../worker/router-types'
 
 const { template } = defineProps<{ template: LedgerTemplate }>()
 const emit = defineEmits(['update', 'update:dirty', 'save'])
@@ -20,19 +20,14 @@ watch(data, (value) => {
   emit('update:dirty', dirty.value)
 })
 
-const ledger = useLedgerStore()
+const templateQuery = useQueryTemplates(template.ledgerId)
 const groups = computed(() =>
-  ledger.templates.reduce(
-    (set, template) => set.add(template.group ?? ''),
-    new Set<string>(),
-  ),
+  getUnique(templateQuery.data.value, (template) => template.group),
 )
 const groupSuggestions: Ref<string[]> = ref([])
 
 function updateSuggestions(event: AutoCompleteCompleteEvent) {
-  groupSuggestions.value = [...groups.value].filter((g) =>
-    g.startsWith(event.query),
-  )
+  groupSuggestions.value = groups.value.filter((g) => g.startsWith(event.query))
   if (groupSuggestions.value.length < 1) {
     groupSuggestions.value = [event.query]
   }

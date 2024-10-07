@@ -29,16 +29,6 @@ const {
 const expandedRows = ref<Record<string, boolean>>({})
 
 const adding = ref(false)
-
-const [animationRef] = useAutoAnimate()
-const dataTableRef = ref()
-const dataTablePt = ref({
-  hooks: {
-    onMounted: () => {
-      animationRef.value = dataTableRef.value.$el.querySelector('tbody')
-    },
-  },
-})
 </script>
 
 <template>
@@ -52,8 +42,6 @@ const dataTablePt = ref({
     :sort-order="-1"
     data-key="id"
     class="ledger-table"
-    :pt="dataTablePt"
-    ref="dataTableRef"
   >
     <Column expander class="button-column" />
     <Column field="name">
