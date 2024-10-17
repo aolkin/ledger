@@ -54,7 +54,11 @@ const addActivity = () =>
       <template #title>{{ item.title }}</template>
       <template #subtitle>per {{ item.unit }}</template>
       <template #footer>
-        <Tag>+{{ item.value }} pts</Tag>
+        <Tag v-if="item.value > 0">+{{ item.value }} pts</Tag>
+        <Tag v-else-if="item.value < 0" severity="info"
+          >{{ item.value }} pts</Tag
+        >
+        <Tag v-else severity="secondary">{{ item.value }} pts</Tag>
       </template>
     </Card>
   </button>

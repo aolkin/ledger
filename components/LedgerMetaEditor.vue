@@ -79,9 +79,9 @@ const removeMutation = useMutation({
   },
 })
 
-const removeLedger = (item: LedgerTemplate) => {
+const removeLedger = (item: LedgerMeta) => {
   confirm.require({
-    message: `Are you sure you want to delete ${item.title}?`,
+    message: `Are you sure you want to delete ${item.name}?`,
     header: 'Permanently Delete Ledger',
     icon: 'pi pi-trash',
     rejectProps: {
@@ -100,46 +100,52 @@ const removeLedger = (item: LedgerTemplate) => {
 }
 </script>
 <template>
-  <div class="flex items-center gap-4 mt-4 w-full">
-    <div class="flex-auto">
-      <label for="name" class="block mb-2">Ledger Name</label>
-      <InputText v-model="ledgerData.name" input-id="name" fluid />
+  <div class="flex flex-wrap items-center gap-4 mt-4 w-full">
+    <div class="flex items-center gap-4 md:flex-nowrap flex-wrap grow">
+      <div class="md:w-auto w-full flex-auto">
+        <label for="name" class="block mb-2">Ledger Name</label>
+        <InputText v-model="ledgerData.name" input-id="name" fluid />
+      </div>
+      <div class="md:w-auto w-full flex-auto">
+        <label for="start-date" class="block mb-2">Start Date</label>
+        <DatePicker
+          v-model="ledgerData.startDate"
+          show-time
+          hour-format="12"
+          fluid
+        />
+      </div>
+      <div class="md:w-auto w-full flex-auto">
+        <label for="end-date" class="block mb-2">End Date</label>
+        <DatePicker
+          v-model="ledgerData.endDate"
+          show-time
+          hour-format="12"
+          fluid
+        />
+      </div>
     </div>
-    <div class="flex-auto">
-      <label for="start-date" class="block mb-2">Start Date</label>
-      <DatePicker
-        v-model="ledgerData.startDate"
-        show-time
-        hour-format="12"
-        fluid
-      />
-    </div>
-    <div class="flex-auto">
-      <label for="end-date" class="block mb-2">End Date</label>
-      <DatePicker
-        v-model="ledgerData.endDate"
-        show-time
-        hour-format="12"
-        fluid
-      />
-    </div>
-    <div class="flex-initial pt-7">
-      <Button
-        icon="pi pi-check"
-        iconPos="right"
-        rounded
-        @click="mutate"
-        :loading="mutation.isPending.value"
-      />
-    </div>
-    <div class="flex-initial pt-7" v-if="ledger">
-      <Button
-        icon="pi pi-trash"
-        severity="danger"
-        iconPos="right"
-        rounded
-        @click="removeLedger(ledger)"
-      />
+    <div
+      class="flex justify-center gap-12 md:gap-4 md:w-auto w-full md:pt-7 flex-row-reverse md:flex-row"
+    >
+      <div class="flex-initial">
+        <Button
+          icon="pi pi-check"
+          iconPos="right"
+          rounded
+          @click="mutate"
+          :loading="mutation.isPending.value"
+        />
+      </div>
+      <div class="flex-initial" v-if="ledger">
+        <Button
+          icon="pi pi-trash"
+          severity="danger"
+          iconPos="right"
+          rounded
+          @click="removeLedger(ledger)"
+        />
+      </div>
     </div>
   </div>
 </template>

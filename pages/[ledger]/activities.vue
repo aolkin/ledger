@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { format, isAfter } from '@formkit/tempo'
 import type { LedgerEntry } from '~/worker/router-types'
 
 const { ledger } = defineProps<{ ledger: string }>()
@@ -16,6 +17,7 @@ watch(
   { immediate: true },
 )
 
+const ledgerMeta = useQueryMeta(ledger)
 const ledgerQuery = useQueryEntries(ledger)
 
 const sumEntries = (entries: LedgerEntry[] | undefined): number =>
@@ -34,6 +36,13 @@ const today = computed(() =>
   ),
 )
 
+const incomplete = computed(
+  () =>
+    ledgerMeta.isSuccess &&
+    ledgerMeta.data.value &&
+    isAfter(ledgerMeta.data.value.endDate, now.value),
+)
+
 watch(drawerVisible, (value) => {
   if (!value && route.matched.length > 1) {
     router.back()
@@ -44,8 +53,13 @@ watch(drawerVisible, (value) => {
 <template>
   <QueryLoader :query="ledgerQuery">
     <div class="w-full flex flex-col my-5 text-center gap-2">
+      <div class="text-xl" v-if="ledgerMeta.data.value">
+        {{ format(ledgerMeta.data.value.startDate, 'short') }}
+        - {{ format(ledgerMeta.data.value.endDate, 'short') }}
+      </div>
       <div class="text-4xl">Total: {{ total }} pts</div>
-      <div class="text-3xl">Today: {{ today }} pts</div>
+      <div class="text-3xl" v-if="incomplete">Today: {{ today }} pts</div>
+      <div class="text-3xl" v-else>Done!</div>
     </div>
     <LedgerTable class="mb-20" :ledger="ledger" />
     <Drawer
@@ -57,6 +71,7 @@ watch(drawerVisible, (value) => {
       <NuxtPage />
     </Drawer>
     <FloatingPlusButton
+      v-if="incomplete"
       as="router-link"
       :to="{ name: 'ledger-activities-record' }"
     />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { diffDays, diffMinutes } from '@formkit/tempo'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import LedgerMetaEditor from '~/components/LedgerMetaEditor.vue'
 
@@ -22,6 +23,22 @@ const ledgerQuery = useQuery({
 const expandedRows = ref<Record<string, boolean>>({})
 
 const adding = ref(false)
+
+const now = useNow({ interval: 30 * 1000 })
+
+function timeLeft(date: Date): string {
+  const minutesUntil = diffMinutes(date, now.value)
+  if (minutesUntil > 0) {
+    if (minutesUntil > 60 * 24) {
+      const daysLeft = diffDays(date, now.value)
+      return `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`
+    }
+    return 'Almost done!'
+  } else if (minutesUntil > -60 * 24) {
+    return 'Done!'
+  }
+  return ''
+}
 </script>
 
 <template>
@@ -55,16 +72,11 @@ const adding = ref(false)
           </Button>
         </template>
       </Column>
-      <!--    <Column class="button-column">-->
-      <!--      <template #body="slotProps">-->
-      <!--        <Button-->
-      <!--          icon="pi pi-trash"-->
-      <!--          severity="danger"-->
-      <!--          size="small"-->
-      <!--          @click="removeActivity(slotProps.data)"-->
-      <!--        />-->
-      <!--      </template>-->
-      <!--    </Column>-->
+      <Column field="endDate">
+        <template #body="slotProps">
+          {{ timeLeft(slotProps.data.endDate) }}
+        </template>
+      </Column>
       <template #expansion="slotProps">
         <LedgerMetaEditor
           :ledger="slotProps.data"
