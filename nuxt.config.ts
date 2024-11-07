@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   // TODO: hmmm
   ssr: false,
   modules: [
+    'nitro-cloudflare-dev',
     '@primevue/nuxt-module',
     '@pinia/nuxt',
     '@nuxtjs/tailwindcss',
@@ -29,6 +30,12 @@ export default defineNuxtConfig({
     config: {
       plugins: [require('tailwindcss-primeui')],
       //content: ["./presets/**/*.{js,vue,ts}"],
+    },
+  },
+  nitro: {
+    preset: 'cloudflare-pages',
+    prerender: {
+      autoSubfolderIndex: false,
     },
   },
 })

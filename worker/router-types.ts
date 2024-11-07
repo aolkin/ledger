@@ -2,6 +2,16 @@ import { TRPCClientError } from '@trpc/client'
 import { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
 import { AppRouter } from './trpc-app'
 
+export type Session = {
+  expires: string
+  userId: string
+  user: {
+    name: string
+    email: string
+    image: string
+  }
+}
+
 type RouterOutput = inferRouterOutputs<AppRouter>
 type RouterInput = inferRouterInputs<AppRouter>
 

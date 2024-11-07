@@ -7,6 +7,16 @@ const trpc = createTRPCProxyClient<AppRouter>({
   links: [
     httpBatchLink({
       url: 'http://localhost:8787/trpc', // Replace with your Worker's URL
+      fetch: (input, data) =>
+        input instanceof URL || typeof input === 'string'
+          ? fetch(input, { ...data, credentials: 'include' })
+          : fetch(
+              {
+                ...input,
+                credentials: 'include',
+              },
+              data,
+            ),
     }),
   ],
   transformer: superjson,

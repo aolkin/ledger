@@ -13,6 +13,8 @@
     "schema": "worker/schema.prisma"
   },
   "dependencies": {
+    "@auth/core": "^0.37.3",
+    "@auth/prisma-adapter": "^2.7.0",
     "@cloudflare/workers-types": "^4.20240919.0",
     "@formkit/auto-animate": "^0.8.2",
     "@formkit/tempo": "^0.1.2",
@@ -24,6 +26,7 @@
     "@trpc/client": "^10.45.2",
     "@vueuse/core": "^11.1.0",
     "@vueuse/nuxt": "^11.1.0",
+    "nitro-cloudflare-dev": "^0.2.1",
     "nuxt": "^3.12.4",
     "pinia": "^2.2.0",
     "pinia-plugin-persistedstate": "^3.2.1",

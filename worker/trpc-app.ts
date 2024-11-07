@@ -3,11 +3,21 @@ import { Prisma, PrismaClient } from '@prisma/client'
 import { inferAsyncReturnType, initTRPC } from '@trpc/server'
 import superjson from 'superjson'
 import { z } from 'zod'
+import { Session } from './router-types'
+
+export enum AccessLevel {
+  ADMIN = 'ADMIN',
+  WRITE = 'WRITE',
+  RECORD = 'RECORD',
+  READ = 'READ',
+}
 
 const idLength = 16
 const createId = cuid2.init({ length: idLength })
 
-type Context = inferAsyncReturnType<() => { prisma: PrismaClient }>
+type Context = inferAsyncReturnType<
+  () => { prisma: PrismaClient; session: Session }
+>
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter: ({ shape, error }) => {
@@ -69,7 +79,18 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
 export const appRouter = t.router({
   ledger: t.router({
     list: t.procedure.query(async ({ ctx }) =>
-      ctx.prisma.ledgerMeta.findMany(),
+      ctx.prisma.ledgerMeta.findMany({
+        where: {
+          access: {
+            some: {
+              userId: ctx.session.userId,
+            },
+          },
+        },
+        include: {
+          access: true,
+        },
+      }),
     ),
     get: t.procedure.input(LedgerIdSchema).query(async ({ input, ctx }) =>
       ctx.prisma.ledgerMeta.findUniqueOrThrow({
@@ -80,7 +101,21 @@ export const appRouter = t.router({
       .input(LedgerMetaSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) =>
         ctx.prisma.ledgerMeta.create({
-          data: { ...input, id: createId() },
+          data: {
+            ...input,
+            id: createId(),
+            access: {
+              create: [
+                {
+                  userId: ctx.session.userId,
+                  level: AccessLevel.ADMIN,
+                },
+              ],
+            },
+          },
+          include: {
+            access: true,
+          },
         }),
       ),
     update: t.procedure
