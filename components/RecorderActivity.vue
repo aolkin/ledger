@@ -20,7 +20,6 @@ const ledgerQuery = useQueryEntries(item.ledgerId)
 const addMutation = useMutation({
   mutationFn: (data: CreateEntryInput) => trpc.entry.create.mutate(data),
   onSuccess: (data) => {
-    console.log(data, ledgerQuery.data.value)
     if (ledgerQuery.data.value !== undefined) {
       queryClient.setQueryData(entriesQueryKey(item.ledgerId), [
         ...ledgerQuery.data.value,
@@ -56,8 +55,8 @@ const addActivity = () =>
       <template #footer>
         <Tag v-if="item.value > 0">+{{ item.value }} pts</Tag>
         <Tag v-else-if="item.value < 0" severity="info"
-          >{{ item.value }} pts</Tag
-        >
+          >{{ item.value }} pts
+        </Tag>
         <Tag v-else severity="secondary">{{ item.value }} pts</Tag>
       </template>
     </Card>

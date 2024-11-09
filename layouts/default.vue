@@ -3,6 +3,7 @@ import { skipToken, useQuery } from '@tanstack/vue-query'
 import { useRoute } from 'vue-router'
 import LoadingBars from '../components/LoadingBars.vue'
 import { useAuth } from '../composables/auth'
+import { canManageActivities } from '../worker/router-types'
 
 const sessionQuery = useQuerySession()
 const { login } = useAuth()
@@ -61,7 +62,9 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
       </template>
       <template #end>
         <Button
-          v-if="pathLedgerId"
+          v-if="
+            pathLedgerId && data?.access && canManageActivities(data.access)
+          "
           as="router-link"
           :to="{
             name: 'ledger-manage',

@@ -82,7 +82,6 @@ const mutation = useMutation({
   mutationFn: async (data: Required<ShareLedgerInput>) =>
     trpc.ledger.share.mutate(data),
   onSuccess: (user, { ledgerId, level }) => {
-    console.log(user, ledgerId, level)
     patchLedgerMetas((existing) => patchAccess(existing, { level, user }))
     deleted.value = false
     emit(existing.value ? 'update' : 'create', user)

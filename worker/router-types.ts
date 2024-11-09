@@ -16,6 +16,12 @@ export const AccessLevelLabels: Record<AccessLevel, string> = {
   [AccessLevel.READ]: 'Read Only',
 }
 
+export const canManageActivities = (level: AccessLevel) =>
+  [AccessLevel.ADMIN, AccessLevel.WRITE].includes(level)
+
+export const canRecordActivities = (level: AccessLevel) =>
+  [AccessLevel.ADMIN, AccessLevel.WRITE, AccessLevel.RECORD].includes(level)
+
 export type Session = {
   expires: string
   userId: string

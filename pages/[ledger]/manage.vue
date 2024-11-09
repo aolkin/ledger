@@ -47,7 +47,6 @@ const addMutation = useMutation({
   mutationFn: (data: Omit<CreateTemplateInput, 'ledgerId'>) =>
     trpc.template.create.mutate({ ...data, ledgerId }),
   onSuccess: (data) => {
-    console.log(data)
     queryClient.setQueryData(templatesQueryKey(ledgerId), [
       ...(templates.value ?? []),
       data,

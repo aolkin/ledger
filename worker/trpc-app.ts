@@ -3,7 +3,12 @@ import { Prisma, PrismaClient } from '@prisma/client'
 import { inferAsyncReturnType, initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { z } from 'zod'
-import { AccessLevel, Session } from './router-types'
+import {
+  AccessLevel,
+  canManageActivities,
+  canRecordActivities,
+  Session,
+} from './router-types'
 
 const idLength = 16
 const createId = cuid2.init({ length: idLength })
@@ -73,11 +78,11 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
   LedgerObjectIdsSchema,
 )
 
-const unauthorized = () => new TRPCError({ code: 'UNAUTHORIZED' })
+const forbidden = () => new TRPCError({ code: 'FORBIDDEN' })
 
 const procedure = t.procedure.use(async ({ ctx, input, next }) => {
   if (!ctx.session) {
-    throw unauthorized()
+    throw new TRPCError({ code: 'UNAUTHORIZED' })
   }
   return next({
     ctx: {
@@ -96,7 +101,7 @@ const ledgerProc = procedure
       },
     })
     if (!access) {
-      throw unauthorized()
+      throw forbidden()
     }
     console.log(ctx.userId, input.ledgerId, access.level)
     return next({ ctx: { access: access.level as AccessLevel } })
@@ -104,25 +109,21 @@ const ledgerProc = procedure
 
 const adminProc = ledgerProc.use(({ ctx, next }) => {
   if (ctx.access !== AccessLevel.ADMIN) {
-    throw unauthorized()
+    throw forbidden()
   }
   return next()
 })
 
 const writeProc = ledgerProc.use(({ ctx, next }) => {
-  if (![AccessLevel.ADMIN, AccessLevel.WRITE].includes(ctx.access)) {
-    throw unauthorized()
+  if (!canManageActivities(ctx.access)) {
+    throw forbidden()
   }
   return next()
 })
 
 const recordProc = ledgerProc.use(({ ctx, next }) => {
-  if (
-    ![AccessLevel.ADMIN, AccessLevel.WRITE, AccessLevel.RECORD].includes(
-      ctx.access,
-    )
-  ) {
-    throw unauthorized()
+  if (!canRecordActivities(ctx.access)) {
+    throw forbidden()
   }
   return next()
 })
@@ -158,11 +159,15 @@ export const appRouter = t.router({
         },
       }),
     ),
-    get: ledgerProc.input(LedgerIdSchema).query(async ({ input, ctx }) =>
-      ctx.prisma.ledgerMeta.findUniqueOrThrow({
+    get: ledgerProc.input(LedgerIdSchema).query(async ({ input, ctx }) => {
+      const ledgerMeta = await ctx.prisma.ledgerMeta.findUniqueOrThrow({
         where: { id: input.ledgerId },
-      }),
-    ),
+      })
+      return {
+        ...ledgerMeta,
+        access: ctx.access,
+      }
+    }),
     create: procedure
       .input(LedgerMetaSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) =>

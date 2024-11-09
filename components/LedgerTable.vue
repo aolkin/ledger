@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { diffMinutes, format, sameDay, diffHours } from '@formkit/tempo'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import type { LedgerEntry } from '../worker/router-types'
+import { canRecordActivities, type LedgerEntry } from '../worker/router-types'
 
 const { ledger } = defineProps<{ ledger: string }>()
 const confirm = useConfirm()
 
 const trpc = useTrpc()
 const queryClient = useQueryClient()
+const ledgerMeta = useQueryMeta(ledger)
 const ledgerQuery = useQueryEntries(ledger)
 const now = useNow({ interval: 30 * 1000 })
 
@@ -169,6 +170,10 @@ const removeEntry = (item: LedgerEntry) => {
               </div>
               <div>
                 <Button
+                  v-if="
+                    ledgerMeta.data.value?.access &&
+                    canRecordActivities(ledgerMeta.data.value.access)
+                  "
                   icon="pi pi-trash"
                   severity="danger"
                   size="small"

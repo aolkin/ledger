@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format, isAfter } from '@formkit/tempo'
-import type { LedgerEntry } from '~/worker/router-types'
+import { canRecordActivities, type LedgerEntry } from '~/worker/router-types'
 
 const { ledger } = defineProps<{ ledger: string }>()
 const router = useRouter()
@@ -71,7 +71,11 @@ watch(drawerVisible, (value) => {
       <NuxtPage />
     </Drawer>
     <FloatingPlusButton
-      v-if="incomplete"
+      v-if="
+        incomplete &&
+        ledgerMeta.data.value?.access &&
+        canRecordActivities(ledgerMeta.data.value.access)
+      "
       as="router-link"
       :to="{ name: 'ledger-activities-record' }"
     />

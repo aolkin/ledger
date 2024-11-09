@@ -16,8 +16,24 @@ const RETRYABLE_ERRORS: TRPC_ERROR_CODE_KEY[] = [
   'TOO_MANY_REQUESTS',
 ]
 
+export function translateError(error: any) {
+  if (isTRPCClientError(error)) {
+    const code = error.data?.code as TRPC_ERROR_CODE_KEY
+    switch (code) {
+      case 'UNAUTHORIZED':
+        return 'Session invalid; Please login again.'
+      case 'FORBIDDEN':
+        return 'Permission denied.'
+      default:
+        return code
+    }
+  }
+  return error
+}
+
 export default defineNuxtPlugin((nuxt) => {
   const vueQueryState = useState<DehydratedState | null>('vue-query')
+  const toast = useToast()
 
   // Modify your Vue Query global settings here
   const queryClient = new QueryClient({
@@ -38,6 +54,17 @@ export default defineNuxtPlugin((nuxt) => {
           return false
         },
         // staleTime: 5000
+      },
+      mutations: {
+        onError(error, variables, context) {
+          console.log(error, variables, context)
+          toast.add({
+            severity: 'error',
+            summary: 'Operation Failed',
+            detail: translateError(error),
+            life: 5000,
+          })
+        },
       },
     },
   })
