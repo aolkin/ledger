@@ -66,7 +66,7 @@ const getDataAndMutation = ledger
     }
 
 const { ledgerData, myAccess, mutate, mutation } = getDataAndMutation()
-const canEdit = myAccess?.level === AccessLevel.ADMIN ?? true
+const canEdit = myAccess === undefined || myAccess.level === AccessLevel.ADMIN
 
 const removeMutation = useMutation({
   mutationFn: async (ledgerId: string) => {

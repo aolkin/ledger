@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
   // TODO: hmmm
-  ssr: false,
+  ssr: true,
   modules: [
     'nitro-cloudflare-dev',
     '@primevue/nuxt-module',
@@ -33,7 +33,7 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
-    preset: 'cloudflare-pages',
+    preset: 'cloudflare_pages',
     prerender: {
       autoSubfolderIndex: false,
     },
