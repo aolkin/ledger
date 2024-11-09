@@ -54,6 +54,10 @@ const LedgerEntrySchema = LedgerTemplateSchema.extend({
   multiplier: z.number(),
   timestamp: z.date().optional(),
 })
+const LedgerShareSchema = z.object({
+  email: z.string(),
+  level: z.optional(z.nativeEnum(AccessLevel)),
+})
 // Partial update schemas
 const LedgerIdSchema = z.object({ ledgerId: ObjectIdSchema })
 const LedgerObjectIdsSchema = LedgerIdSchema.and(
@@ -69,12 +73,15 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
   LedgerObjectIdsSchema,
 )
 
+const unauthorized = () => new TRPCError({ code: 'UNAUTHORIZED' })
+
 const procedure = t.procedure.use(async ({ ctx, input, next }) => {
   if (!ctx.session) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+    throw unauthorized()
   }
   return next({
     ctx: {
+      session: ctx.session,
       userId: ctx.session.userId,
     },
   })
@@ -89,11 +96,43 @@ const ledgerProc = procedure
       },
     })
     if (!access) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' })
+      throw unauthorized()
     }
-    console.log(ctx.userId, input.ledgerId, access)
-    return next({ ctx: { access: access.level } })
+    console.log(ctx.userId, input.ledgerId, access.level)
+    return next({ ctx: { access: access.level as AccessLevel } })
   })
+
+const adminProc = ledgerProc.use(({ ctx, next }) => {
+  if (ctx.access !== AccessLevel.ADMIN) {
+    throw unauthorized()
+  }
+  return next()
+})
+
+const writeProc = ledgerProc.use(({ ctx, next }) => {
+  if (![AccessLevel.ADMIN, AccessLevel.WRITE].includes(ctx.access)) {
+    throw unauthorized()
+  }
+  return next()
+})
+
+const recordProc = ledgerProc.use(({ ctx, next }) => {
+  if (
+    ![AccessLevel.ADMIN, AccessLevel.WRITE, AccessLevel.RECORD].includes(
+      ctx.access,
+    )
+  ) {
+    throw unauthorized()
+  }
+  return next()
+})
+
+const EXPOSED_USER_FIELDS = {
+  id: true,
+  email: true,
+  name: true,
+  image: true,
+}
 
 // Define your tRPC procedures
 export const appRouter = t.router({
@@ -108,7 +147,14 @@ export const appRouter = t.router({
           },
         },
         include: {
-          access: true,
+          access: {
+            select: {
+              level: true,
+              user: {
+                select: EXPOSED_USER_FIELDS,
+              },
+            },
+          },
         },
       }),
     ),
@@ -138,7 +184,7 @@ export const appRouter = t.router({
           },
         }),
       ),
-    update: ledgerProc
+    update: adminProc
       .input(PartialLedgerMetaSchema)
       .mutation(async ({ input, ctx }) => {
         const { ledgerId, ...data } = input
@@ -147,23 +193,57 @@ export const appRouter = t.router({
           data,
         })
       }),
-    delete: ledgerProc
-      .input(LedgerIdSchema)
-      .mutation(async ({ input, ctx }) => {
-        const ledger = await ctx.prisma.ledgerMeta.findUniqueOrThrow({
-          where: { id: input.ledgerId },
-          include: { templates: true, entries: true },
+    delete: adminProc.input(LedgerIdSchema).mutation(async ({ input, ctx }) => {
+      const ledger = await ctx.prisma.ledgerMeta.findUniqueOrThrow({
+        where: { id: input.ledgerId },
+        include: { templates: true, entries: true },
+      })
+      if (ledger.templates.length === 0 && ledger.entries.length === 0) {
+        await ctx.prisma.updateLog.deleteMany({
+          where: { ledgerId: input.ledgerId },
         })
-        if (ledger.templates.length === 0 && ledger.entries.length === 0) {
-          await ctx.prisma.updateLog.deleteMany({
-            where: { ledgerId: input.ledgerId },
+      }
+      return ctx.prisma.ledgerMeta.delete({ where: { id: input.ledgerId } })
+    }),
+    share: adminProc
+      .input(LedgerIdSchema.and(LedgerShareSchema))
+      .mutation(async ({ input, ctx }) => {
+        const { ledgerId, email, level } = input
+        if (ctx.session.user.email === email) {
+          throw new TRPCError({ code: 'BAD_REQUEST' })
+        }
+        const user = await ctx.prisma.user.findUniqueOrThrow({
+          where: { email },
+          select: EXPOSED_USER_FIELDS,
+        })
+        const uniqueConstraint = {
+          ledgerId_userId: {
+            ledgerId,
+            userId: user.id,
+          },
+        }
+        if (level) {
+          await ctx.prisma.ledgerAccess.upsert({
+            where: uniqueConstraint,
+            update: {
+              level,
+            },
+            create: {
+              userId: user.id,
+              ledgerId: ledgerId,
+              level,
+            },
+          })
+        } else {
+          await ctx.prisma.ledgerAccess.delete({
+            where: uniqueConstraint,
           })
         }
-        return ctx.prisma.ledgerMeta.delete({ where: { id: input.ledgerId } })
+        return user
       }),
   }),
   template: t.router({
-    create: ledgerProc
+    create: writeProc
       .input(LedgerTemplateSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerTemplate.create({
@@ -191,7 +271,7 @@ export const appRouter = t.router({
       ),
 
     // Partial update for LedgerTemplate
-    update: ledgerProc
+    update: writeProc
       .input(PartialLedgerTemplateSchema)
       .mutation(async ({ input, ctx }) => {
         const { id, ledgerId, ...updateData } = input
@@ -212,7 +292,7 @@ export const appRouter = t.router({
         })
       }),
 
-    delete: ledgerProc
+    delete: writeProc
       .input(LedgerObjectIdsSchema)
       .mutation(
         async ({ input, ctx }) =>
@@ -221,7 +301,7 @@ export const appRouter = t.router({
   }),
   entry: t.router({
     // LedgerEntry procedures
-    create: ledgerProc
+    create: recordProc
       .input(LedgerEntrySchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerEntry.create({
@@ -251,7 +331,7 @@ export const appRouter = t.router({
       }),
 
     // Partial update for LedgerEntry
-    update: ledgerProc
+    update: recordProc
       .input(PartialLedgerEntrySchema)
       .mutation(async ({ input, ctx }) => {
         const { id, ...updateData } = input
@@ -272,7 +352,7 @@ export const appRouter = t.router({
         })
       }),
 
-    delete: ledgerProc
+    delete: recordProc
       .input(LedgerObjectIdsSchema)
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerEntry.delete({ where: input })

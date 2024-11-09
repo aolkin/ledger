@@ -14,7 +14,6 @@ const pathLedgerId = computed(() => {
 })
 const queryFn = computed(() => {
   const ledgerId = pathLedgerId.value
-  console.log(sessionQuery.data.value)
   return sessionQuery.data.value && typeof ledgerId === 'string'
     ? () => trpc.ledger.get.query({ ledgerId })
     : skipToken

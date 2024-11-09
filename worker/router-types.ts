@@ -9,6 +9,13 @@ export enum AccessLevel {
   READ = 'READ',
 }
 
+export const AccessLevelLabels: Record<AccessLevel, string> = {
+  [AccessLevel.ADMIN]: 'Full Access',
+  [AccessLevel.WRITE]: 'Configure Activities',
+  [AccessLevel.RECORD]: 'Record Activities',
+  [AccessLevel.READ]: 'Read Only',
+}
+
 export type Session = {
   expires: string
   userId: string
@@ -26,7 +33,9 @@ export type CreateLedgerInput = RouterInput['ledger']['create']
 export type CreateLedgerOutput = RouterOutput['ledger']['create']
 export type ListLedgersOutput = RouterOutput['ledger']['list']
 export type LedgerMeta = ListLedgersOutput[0]
+export type LedgerShare = LedgerMeta['access'][0]
 export type UpdateLedgerMetaInput = RouterInput['ledger']['update']
+export type ShareLedgerInput = RouterInput['ledger']['share']
 
 export type CreateTemplateInput = RouterInput['template']['create']
 export type ListTemplatesOutput = RouterOutput['template']['getForLedger']

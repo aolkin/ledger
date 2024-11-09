@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { addDay, dayStart } from '@formkit/tempo'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import { useQueryLedger } from '../composables/queries'
-import type {
-  CreateLedgerInput,
-  LedgerMeta,
-  UpdateLedgerMetaInput,
+import { useQueryLedgers, useQuerySession } from '../composables/queries'
+import {
+  AccessLevel,
+  AccessLevelLabels,
+  type CreateLedgerInput,
+  type LedgerMeta,
+  type UpdateLedgerMetaInput,
 } from '../worker/router-types'
+import LedgerShareManager from './LedgerShareManager.vue'
 
 const { ledger } = defineProps<{ ledger?: LedgerMeta }>()
 const emit = defineEmits(['save'])
@@ -14,8 +17,8 @@ const emit = defineEmits(['save'])
 const confirm = useConfirm()
 const trpc = useTrpc()
 const queryClient = useQueryClient()
-
-const ledgerQuery = useQueryLedger()
+const session = useQuerySession()
+const ledgerQuery = useQueryLedgers()
 
 const now = new Date()
 
@@ -26,7 +29,6 @@ const getDataAndMutation = ledger
         mutationFn: async (data: UpdateLedgerMetaInput) =>
           trpc.ledger.update.mutate(data),
         onSuccess: (data) => {
-          console.log(data)
           queryClient.setQueryData(
             ['metas'],
             (ledgerQuery.data.value ?? []).map((item) =>
@@ -37,7 +39,10 @@ const getDataAndMutation = ledger
         },
       })
       const mutate = () => mutation.mutate(ledgerData)
-      return { ledgerData, mutate, mutation }
+      const myAccess = ledger.access.find(
+        (item) => item.user.email === session.data.value.user.email,
+      )
+      return { ledgerData, myAccess, mutate, mutation }
     }
   : () => {
       const ledgerData = reactive({
@@ -49,7 +54,6 @@ const getDataAndMutation = ledger
         mutationFn: async (data: CreateLedgerInput) =>
           trpc.ledger.create.mutate(data),
         onSuccess: (data) => {
-          console.log(data)
           queryClient.setQueryData(
             ['metas'],
             [...(ledgerQuery.data.value ?? []), data],
@@ -58,10 +62,11 @@ const getDataAndMutation = ledger
         },
       })
       const mutate = () => mutation.mutate(ledgerData)
-      return { ledgerData, mutate, mutation }
+      return { ledgerData, myAccess: undefined, mutate, mutation }
     }
 
-const { ledgerData, mutate, mutation } = getDataAndMutation()
+const { ledgerData, myAccess, mutate, mutation } = getDataAndMutation()
+const canEdit = myAccess?.level === AccessLevel.ADMIN ?? true
 
 const removeMutation = useMutation({
   mutationFn: async (ledgerId: string) => {
@@ -101,7 +106,12 @@ const removeLedger = (item: LedgerMeta) => {
     <div class="flex items-center gap-4 md:flex-nowrap flex-wrap grow">
       <div class="md:w-auto w-full flex-auto">
         <label for="name" class="block mb-2">Ledger Name</label>
-        <InputText v-model="ledgerData.name" input-id="name" fluid />
+        <InputText
+          v-model="ledgerData.name"
+          input-id="name"
+          fluid
+          :disabled="!canEdit"
+        />
       </div>
       <div class="md:w-auto w-full flex-auto">
         <label for="start-date" class="block mb-2">Start Date</label>
@@ -110,6 +120,7 @@ const removeLedger = (item: LedgerMeta) => {
           show-time
           hour-format="12"
           fluid
+          :disabled="!canEdit"
         />
       </div>
       <div class="md:w-auto w-full flex-auto">
@@ -119,11 +130,13 @@ const removeLedger = (item: LedgerMeta) => {
           show-time
           hour-format="12"
           fluid
+          :disabled="!canEdit"
         />
       </div>
     </div>
     <div
       class="flex justify-center gap-12 md:gap-4 md:w-auto w-full md:pt-7 flex-row-reverse md:flex-row"
+      v-if="canEdit"
     >
       <div class="flex-initial">
         <Button
@@ -144,6 +157,16 @@ const removeLedger = (item: LedgerMeta) => {
         />
       </div>
     </div>
+  </div>
+  <div
+    class="flex flex-wrap items-center gap-4 mt-4 w-full"
+    v-if="ledger && myAccess?.level === AccessLevel.ADMIN"
+  >
+    <LedgerShareManager :ledger="ledger.id" :access="ledger.access" />
+  </div>
+  <div v-else-if="myAccess" class="mb-2 mt-4 w-full">
+    You have "{{ AccessLevelLabels[myAccess.level as AccessLevel] }}" permission
+    on this ledger.
   </div>
 </template>
 <style scoped></style>

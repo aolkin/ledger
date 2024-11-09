@@ -46,6 +46,6 @@ export const useQueryEntries = (ledgerId: string) =>
 
 const queryLedgers = queryOptions({
   queryKey: ['metas'],
-  queryFn: () => trpc.ledger.list.query(),
+  queryFn: () => reactive(trpc.ledger.list.query()),
 })
-export const useQueryLedger = () => useQuery(queryLedgers)
+export const useQueryLedgers = () => useQuery(queryLedgers)

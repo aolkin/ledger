@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { diffDays, diffMinutes } from '@formkit/tempo'
 import LedgerMetaEditor from '~/components/LedgerMetaEditor.vue'
-import { useQueryLedger } from '../composables/queries'
+import { useQueryLedgers } from '../composables/queries'
 
 useHead({
   title: 'Ledgers',
@@ -10,8 +10,8 @@ definePageMeta({
   title: 'Ledgers',
 })
 
-const ledgerQuery = useQueryLedger()
-onMounted(() => ledgerQuery.refetch())
+const ledgersQuery = useQueryLedgers()
+// onMounted(() => ledgerQuery.refetch())
 
 const expandedRows = ref<Record<string, boolean>>({})
 
@@ -35,9 +35,9 @@ function timeLeft(date: Date): string {
 </script>
 
 <template>
-  <QueryLoader :query="ledgerQuery">
+  <QueryLoader :query="ledgersQuery">
     <DataTable
-      :value="ledgerQuery.data.value"
+      :value="ledgersQuery.data.value"
       v-model:expanded-rows="expandedRows"
       sort-field="startDate"
       :sort-order="-1"
@@ -68,6 +68,19 @@ function timeLeft(date: Date): string {
       <Column field="endDate">
         <template #body="slotProps">
           {{ timeLeft(slotProps.data.endDate) }}
+        </template>
+      </Column>
+      <Column field="access">
+        <template #body="slotProps">
+          <AvatarGroup>
+            <Avatar
+              v-for="share in slotProps.data.access"
+              :key="share.user.email"
+              shape="circle"
+              :image="share.user.image"
+              v-tooltip.top="share.user.name"
+            />
+          </AvatarGroup>
         </template>
       </Column>
       <template #expansion="slotProps">
