@@ -33,14 +33,17 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
-    preset: 'cloudflare_pages',
+    preset: 'cloudflare-pages',
     prerender: {
       autoSubfolderIndex: false,
     },
   },
   runtimeConfig: {
     public: {
-      apiOrigin: 'http://localhost:8787',
+      apiOrigin:
+        process.env.NODE_ENV === 'production'
+          ? 'https://api.ledger.olkin.games'
+          : 'http://localhost:8787',
     },
   },
 })

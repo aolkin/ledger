@@ -32,6 +32,11 @@ function timeLeft(date: Date): string {
   }
   return ''
 }
+
+function onCreatedLedger() {
+  adding.value = false
+  // ledgersQuery.refetch()
+}
 </script>
 
 <template>
@@ -75,10 +80,10 @@ function timeLeft(date: Date): string {
           <AvatarGroup>
             <Avatar
               v-for="share in slotProps.data.access"
-              :key="share.user.email"
+              :key="share.user?.email"
               shape="circle"
-              :image="share.user.image"
-              v-tooltip.top="share.user.name"
+              :image="share.user?.image"
+              v-tooltip.top="share.user?.name"
             />
           </AvatarGroup>
         </template>
@@ -98,7 +103,7 @@ function timeLeft(date: Date): string {
       dismissable-mask
       class="m-2"
     >
-      <LedgerMetaEditor @save="adding = false" />
+      <LedgerMetaEditor @save="onCreatedLedger" />
     </Dialog>
   </QueryLoader>
 </template>

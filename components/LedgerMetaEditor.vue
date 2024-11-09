@@ -56,7 +56,18 @@ const getDataAndMutation = ledger
         onSuccess: (data) => {
           queryClient.setQueryData(
             ['metas'],
-            [...(ledgerQuery.data.value ?? []), data],
+            [
+              ...(ledgerQuery.data.value ?? []),
+              {
+                ...data,
+                access: [
+                  {
+                    level: AccessLevel.ADMIN,
+                    user: session.data.value.user,
+                  },
+                ],
+              },
+            ],
           )
           emit('save', data)
         },

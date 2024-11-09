@@ -122,9 +122,9 @@ model LedgerEntry {
 model LedgerAccess {
   id       String     @id @default(uuid())
   ledgerId String
-  ledger   LedgerMeta @relation(fields: [ledgerId], references: [id])
+  ledger   LedgerMeta @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
   userId   String
-  user     User       @relation(fields: [userId], references: [id])
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   level    String
 
   @@unique([ledgerId, userId])
