@@ -12,6 +12,7 @@ type Env = {
   AUTH_SECRET: string
   AUTH_GOOGLE_ID: string
   AUTH_GOOGLE_SECRET: string
+  ALLOWED_ORIGIN: string
 }
 
 function makeSessionRequest(url: URL, request: Request) {
@@ -37,8 +38,7 @@ export default {
     })
 
     const headers: Record<string, string> = {
-      // TODO: make this more secure
-      'Access-Control-Allow-Origin': request.headers.get('origin') ?? '*',
+      'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN,
       'Access-Control-Allow-Methods': 'GET,POST',
       'Access-Control-Allow-Credentials': 'true',
     }
@@ -80,8 +80,10 @@ export default {
             }
           },
           redirect({ url, baseUrl }) {
-            // TODO: make this more secure
-            return url
+            if (new URL(url).origin === env.ALLOWED_ORIGIN) {
+              return url
+            }
+            return env.ALLOWED_ORIGIN
           },
         },
       },

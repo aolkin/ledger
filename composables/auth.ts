@@ -1,9 +1,9 @@
 import type { AuthAction } from '@auth/core/types'
 
-const config = useRuntimeConfig()
-
-const authUrl = (action: AuthAction | string) =>
-  `${config.public.apiOrigin}/auth/${action}`
+const authUrl = (action: AuthAction | string) => {
+  const config = useRuntimeConfig()
+  return `${config.public.apiOrigin}/auth/${action}`
+}
 
 const authFetch = async (
   action: AuthAction | string,
