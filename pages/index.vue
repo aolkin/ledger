@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { diffDays, diffMinutes } from '@formkit/tempo'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import LedgerMetaEditor from '~/components/LedgerMetaEditor.vue'
+import { useQueryLedger } from '../composables/queries'
 
 useHead({
   title: 'Ledgers',
@@ -10,16 +10,9 @@ definePageMeta({
   title: 'Ledgers',
 })
 
-const trpc = useTrpc()
-const queryClient = useQueryClient()
-const route = useRoute()
-const confirm = useConfirm()
+const ledgerQuery = useQueryLedger()
+onMounted(() => ledgerQuery.refetch())
 
-const ledgerQuery = useQuery({
-  queryKey: ['metas'],
-  queryFn: () => trpc.ledger.list.query(),
-  refetchOnMount: true,
-})
 const expandedRows = ref<Record<string, boolean>>({})
 
 const adding = ref(false)

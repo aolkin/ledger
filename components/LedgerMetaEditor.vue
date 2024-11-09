@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { addDay, dayStart } from '@formkit/tempo'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQueryLedger } from '../composables/queries'
 import type {
   CreateLedgerInput,
   LedgerMeta,
-  LedgerTemplate,
   UpdateLedgerMetaInput,
 } from '../worker/router-types'
 
@@ -15,16 +15,13 @@ const confirm = useConfirm()
 const trpc = useTrpc()
 const queryClient = useQueryClient()
 
-const ledgerQuery = useQuery({
-  queryKey: ['metas'],
-  queryFn: () => trpc.ledger.list.query(),
-})
+const ledgerQuery = useQueryLedger()
 
 const now = new Date()
 
 const getDataAndMutation = ledger
   ? () => {
-      const ledgerData = reactive({ ...ledger })
+      const ledgerData = reactive({ ...ledger, ledgerId: ledger.id })
       const mutation = useMutation({
         mutationFn: async (data: UpdateLedgerMetaInput) =>
           trpc.ledger.update.mutate(data),

@@ -2,6 +2,13 @@ import { TRPCClientError } from '@trpc/client'
 import { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
 import { AppRouter } from './trpc-app'
 
+export enum AccessLevel {
+  ADMIN = 'ADMIN',
+  WRITE = 'WRITE',
+  RECORD = 'RECORD',
+  READ = 'READ',
+}
+
 export type Session = {
   expires: string
   userId: string

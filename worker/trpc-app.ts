@@ -1,22 +1,15 @@
 import * as cuid2 from '@paralleldrive/cuid2'
 import { Prisma, PrismaClient } from '@prisma/client'
-import { inferAsyncReturnType, initTRPC } from '@trpc/server'
+import { inferAsyncReturnType, initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { z } from 'zod'
-import { Session } from './router-types'
-
-export enum AccessLevel {
-  ADMIN = 'ADMIN',
-  WRITE = 'WRITE',
-  RECORD = 'RECORD',
-  READ = 'READ',
-}
+import { AccessLevel, Session } from './router-types'
 
 const idLength = 16
 const createId = cuid2.init({ length: idLength })
 
 type Context = inferAsyncReturnType<
-  () => { prisma: PrismaClient; session: Session }
+  () => { prisma: PrismaClient; session: Session | null }
 >
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
@@ -37,6 +30,7 @@ const t = initTRPC.context<Context>().create({
     return shape
   },
 })
+
 // Define your data models using Zod for validation
 const ObjectIdSchema = z.string().min(idLength).max(idLength)
 const ColorSchema = z.string()
@@ -65,9 +59,9 @@ const LedgerIdSchema = z.object({ ledgerId: ObjectIdSchema })
 const LedgerObjectIdsSchema = LedgerIdSchema.and(
   z.object({ id: ObjectIdSchema }),
 )
-const PartialLedgerMetaSchema = LedgerMetaSchema.partial().and(
-  z.object({ id: ObjectIdSchema }),
-)
+const PartialLedgerMetaSchema = LedgerMetaSchema.partial()
+  .omit({ id: true })
+  .and(LedgerIdSchema)
 const PartialLedgerTemplateSchema = LedgerTemplateSchema.partial().and(
   LedgerObjectIdsSchema,
 )
@@ -75,15 +69,41 @@ const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
   LedgerObjectIdsSchema,
 )
 
+const procedure = t.procedure.use(async ({ ctx, input, next }) => {
+  if (!ctx.session) {
+    throw new TRPCError({ code: 'UNAUTHORIZED' })
+  }
+  return next({
+    ctx: {
+      userId: ctx.session.userId,
+    },
+  })
+})
+
+const ledgerProc = procedure
+  .input(LedgerIdSchema)
+  .use(async ({ ctx, input, next }) => {
+    const access = await ctx.prisma.ledgerAccess.findUnique({
+      where: {
+        ledgerId_userId: { ledgerId: input.ledgerId, userId: ctx.userId },
+      },
+    })
+    if (!access) {
+      throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+    console.log(ctx.userId, input.ledgerId, access)
+    return next({ ctx: { access: access.level } })
+  })
+
 // Define your tRPC procedures
 export const appRouter = t.router({
   ledger: t.router({
-    list: t.procedure.query(async ({ ctx }) =>
+    list: procedure.query(async ({ ctx }) =>
       ctx.prisma.ledgerMeta.findMany({
         where: {
           access: {
             some: {
-              userId: ctx.session.userId,
+              userId: ctx.userId,
             },
           },
         },
@@ -92,12 +112,12 @@ export const appRouter = t.router({
         },
       }),
     ),
-    get: t.procedure.input(LedgerIdSchema).query(async ({ input, ctx }) =>
+    get: ledgerProc.input(LedgerIdSchema).query(async ({ input, ctx }) =>
       ctx.prisma.ledgerMeta.findUniqueOrThrow({
         where: { id: input.ledgerId },
       }),
     ),
-    create: t.procedure
+    create: procedure
       .input(LedgerMetaSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) =>
         ctx.prisma.ledgerMeta.create({
@@ -107,7 +127,7 @@ export const appRouter = t.router({
             access: {
               create: [
                 {
-                  userId: ctx.session.userId,
+                  userId: ctx.userId,
                   level: AccessLevel.ADMIN,
                 },
               ],
@@ -118,15 +138,16 @@ export const appRouter = t.router({
           },
         }),
       ),
-    update: t.procedure
+    update: ledgerProc
       .input(PartialLedgerMetaSchema)
-      .mutation(async ({ input, ctx }) =>
-        ctx.prisma.ledgerMeta.update({
-          where: { id: input.id },
-          data: input,
-        }),
-      ),
-    delete: t.procedure
+      .mutation(async ({ input, ctx }) => {
+        const { ledgerId, ...data } = input
+        return ctx.prisma.ledgerMeta.update({
+          where: { id: ledgerId },
+          data,
+        })
+      }),
+    delete: ledgerProc
       .input(LedgerIdSchema)
       .mutation(async ({ input, ctx }) => {
         const ledger = await ctx.prisma.ledgerMeta.findUniqueOrThrow({
@@ -142,7 +163,7 @@ export const appRouter = t.router({
       }),
   }),
   template: t.router({
-    create: t.procedure
+    create: ledgerProc
       .input(LedgerTemplateSchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerTemplate.create({
@@ -162,7 +183,7 @@ export const appRouter = t.router({
         })
       }),
 
-    getForLedger: t.procedure
+    getForLedger: ledgerProc
       .input(LedgerIdSchema)
       .query(
         async ({ input, ctx }) =>
@@ -170,7 +191,7 @@ export const appRouter = t.router({
       ),
 
     // Partial update for LedgerTemplate
-    update: t.procedure
+    update: ledgerProc
       .input(PartialLedgerTemplateSchema)
       .mutation(async ({ input, ctx }) => {
         const { id, ledgerId, ...updateData } = input
@@ -191,7 +212,7 @@ export const appRouter = t.router({
         })
       }),
 
-    delete: t.procedure
+    delete: ledgerProc
       .input(LedgerObjectIdsSchema)
       .mutation(
         async ({ input, ctx }) =>
@@ -200,7 +221,7 @@ export const appRouter = t.router({
   }),
   entry: t.router({
     // LedgerEntry procedures
-    create: t.procedure
+    create: ledgerProc
       .input(LedgerEntrySchema.omit({ id: true }))
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerEntry.create({
@@ -221,7 +242,7 @@ export const appRouter = t.router({
         })
       }),
 
-    getForLedger: t.procedure
+    getForLedger: ledgerProc
       .input(LedgerIdSchema)
       .query(async ({ input, ctx }) => {
         return ctx.prisma.ledgerEntry.findMany({
@@ -230,7 +251,7 @@ export const appRouter = t.router({
       }),
 
     // Partial update for LedgerEntry
-    update: t.procedure
+    update: ledgerProc
       .input(PartialLedgerEntrySchema)
       .mutation(async ({ input, ctx }) => {
         const { id, ...updateData } = input
@@ -251,7 +272,7 @@ export const appRouter = t.router({
         })
       }),
 
-    delete: t.procedure
+    delete: ledgerProc
       .input(LedgerObjectIdsSchema)
       .mutation(async ({ input, ctx }) => {
         return await ctx.prisma.ledgerEntry.delete({ where: input })
@@ -259,14 +280,15 @@ export const appRouter = t.router({
   }),
 
   // Get updates since a given timestamp
-  getUpdatesSince: t.procedure
-    .input(z.object({ since: z.date() }))
+  getUpdatesSince: ledgerProc
+    .input(LedgerIdSchema.and(z.object({ since: z.date() })))
     .query(async ({ input, ctx }) => {
       return ctx.prisma.updateLog.findMany({
         where: {
           timestamp: {
             gt: input.since,
           },
+          ledgerId: input.ledgerId,
         },
         orderBy: {
           timestamp: 'asc',

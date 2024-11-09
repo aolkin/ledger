@@ -38,4 +38,9 @@ export default defineNuxtConfig({
       autoSubfolderIndex: false,
     },
   },
+  runtimeConfig: {
+    public: {
+      apiOrigin: 'http://localhost:8787',
+    },
+  },
 })

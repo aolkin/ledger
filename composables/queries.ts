@@ -1,6 +1,20 @@
 import { queryOptions, useQuery } from '@tanstack/vue-query'
+import type { Session } from '../worker/router-types'
 
+const config = useRuntimeConfig()
 const trpc = useTrpc()
+
+const querySession = () =>
+  queryOptions({
+    queryKey: ['session'],
+    queryFn: async () => {
+      const result = await fetch(`${config.public.apiOrigin}/auth/session`, {
+        credentials: 'include',
+      })
+      return (await result.json()) satisfies Session
+    },
+  })
+export const useQuerySession = () => useQuery(querySession())
 
 const queryMeta = (ledgerId: string) =>
   queryOptions({
@@ -29,3 +43,9 @@ const queryEntries = (ledgerId: string) =>
   })
 export const useQueryEntries = (ledgerId: string) =>
   useQuery(queryEntries(ledgerId))
+
+const queryLedgers = queryOptions({
+  queryKey: ['metas'],
+  queryFn: () => trpc.ledger.list.query(),
+})
+export const useQueryLedger = () => useQuery(queryLedgers)

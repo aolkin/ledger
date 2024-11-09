@@ -2,6 +2,10 @@
 import { skipToken, useQuery } from '@tanstack/vue-query'
 import { useRoute } from 'vue-router'
 import LoadingBars from '../components/LoadingBars.vue'
+import { useAuth } from '../composables/auth'
+
+const sessionQuery = useQuerySession()
+const { login } = useAuth()
 
 const route = useRoute()
 const trpc = useTrpc()
@@ -10,7 +14,8 @@ const pathLedgerId = computed(() => {
 })
 const queryFn = computed(() => {
   const ledgerId = pathLedgerId.value
-  return typeof ledgerId === 'string'
+  console.log(sessionQuery.data.value)
+  return sessionQuery.data.value && typeof ledgerId === 'string'
     ? () => trpc.ledger.get.query({ ledgerId })
     : skipToken
 })
@@ -18,6 +23,12 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
   queryKey: ['meta', { id: pathLedgerId.value }],
   queryFn,
 })
+
+// watch([sessionQuery.isSuccess, sessionQuery.data], () => {
+//   if (sessionQuery.isSuccess.value && !sessionQuery.data.value) {
+//     login()
+//   }
+// })
 </script>
 
 <template>
@@ -60,7 +71,7 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
           icon="pi pi-cog"
           text
         />
-        <Button
+        <!--<Button
           v-else
           as="router-link"
           :to="{
@@ -68,10 +79,15 @@ const { isPending, isError, isSuccess, data, error } = useQuery({
           }"
           icon="pi pi-user"
           text
-        />
+        />-->
+        <UserMenu />
       </template>
     </Toolbar>
-    <LoadingBars v-if="pathLedgerId && isPending" />
+    <LoadingBars v-if="sessionQuery.isPending.value" />
+    <div v-else-if="!sessionQuery.data.value">
+      <Message severity="info">Please log in.</Message>
+    </div>
+    <LoadingBars v-else-if="pathLedgerId && isPending" />
     <div v-else-if="pathLedgerId && isError">
       <Message severity="error">Error! {{ error }}</Message>
     </div>

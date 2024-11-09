@@ -33,10 +33,11 @@ export default {
 
     const prisma = new PrismaClient({
       adapter: new PrismaD1(env.DB),
-      log: ['query', 'info', 'warn', 'error'],
+      // log: ['query', 'info', 'warn', 'error'],
     })
 
     const headers: Record<string, string> = {
+      // TODO: make this more secure
       'Access-Control-Allow-Origin': request.headers.get('origin') ?? '*',
       'Access-Control-Allow-Methods': 'GET,POST',
       'Access-Control-Allow-Credentials': 'true',
@@ -65,7 +66,7 @@ export default {
         adapter: PrismaAdapter(prisma),
         providers: [google],
         secret: env.AUTH_SECRET,
-        debug: true,
+        //debug: true,
         callbacks: {
           async session({ session, token, user }) {
             return {
@@ -78,22 +79,50 @@ export default {
               },
             }
           },
+          redirect({ url, baseUrl }) {
+            // TODO: make this more secure
+            return url
+          },
         },
       },
     )
     if (isAuthRequest) {
+      if (
+        request.headers.get('Accept') === 'application/json' ||
+        auth.headers.get('Content-Type') === 'application/json'
+      ) {
+        const authHeaders = new Headers()
+        auth.headers?.forEach((value, key) => authHeaders.append(key, value))
+        Object.entries(headers).forEach(([key, value]) =>
+          authHeaders.append(key, value),
+        )
+        const redirect = auth.headers.get('Location')
+        if (auth.status === 302 && redirect) {
+          const redirectUrl = new URL(redirect)
+          const result: { redirect?: string; error?: string } = {}
+          if (
+            redirectUrl.origin === url.origin &&
+            redirectUrl.pathname !== '/'
+          ) {
+            result.error =
+              redirectUrl.searchParams.get('error') || 'UnknownError'
+          } else {
+            result.redirect = redirect
+          }
+          authHeaders.delete('Location')
+          return new Response(JSON.stringify(result), {
+            headers: authHeaders,
+          })
+        }
+        return new Response(auth.body, {
+          status: auth.status,
+          statusText: auth.statusText,
+          headers: authHeaders,
+        })
+      }
       return auth
     } else {
-      const session = (await auth.json()) satisfies Session
-      if (!session) {
-        return new Response(
-          JSON.stringify({
-            error: 'Unauthorized',
-          }),
-          { status: 401, headers },
-        )
-      }
-      console.log(session)
+      const session = (await auth.json()) satisfies Session | null
       return fetchRequestHandler({
         endpoint: '/trpc',
         req: request,

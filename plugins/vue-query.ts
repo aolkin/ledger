@@ -5,7 +5,16 @@ import {
   QueryClient,
   VueQueryPlugin,
 } from '@tanstack/vue-query'
+import type { TRPC_ERROR_CODE_KEY } from '@trpc/server/rpc'
 import { isTRPCClientError } from '../worker/router-types'
+
+const RETRYABLE_ERRORS: TRPC_ERROR_CODE_KEY[] = [
+  'CLIENT_CLOSED_REQUEST',
+  'CONFLICT',
+  'INTERNAL_SERVER_ERROR',
+  'TIMEOUT',
+  'TOO_MANY_REQUESTS',
+]
 
 export default defineNuxtPlugin((nuxt) => {
   const vueQueryState = useState<DehydratedState | null>('vue-query')
@@ -17,15 +26,16 @@ export default defineNuxtPlugin((nuxt) => {
         refetchOnMount: false,
         retry(failureCount, error): boolean {
           if (isTRPCClientError(error)) {
-            if (error.data?.code === 'NOT_FOUND') {
-              return false
+            const errorCode = error.data?.code as TRPC_ERROR_CODE_KEY
+            if (errorCode && RETRYABLE_ERRORS.includes(errorCode)) {
+              return failureCount < 3
             } else {
               console.error('TRPCClientError', error, error.data?.code)
             }
           } else {
             console.error('Unexpected error', error)
           }
-          return failureCount < 3
+          return false
         },
         // staleTime: 5000
       },
