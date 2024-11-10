@@ -32,7 +32,7 @@ const getDataAndMutation = ledger
           queryClient.setQueryData(
             ['metas'],
             (ledgerQuery.data.value ?? []).map((item) =>
-              item.id === data.id ? data : item,
+              item.id === data.id ? { ...item, ...data } : item,
             ),
           )
           emit('save', data)
