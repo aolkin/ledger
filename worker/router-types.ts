@@ -47,6 +47,7 @@ export type CreateTemplateInput = RouterInput['template']['create']
 export type ListTemplatesOutput = RouterOutput['template']['getForLedger']
 export type LedgerTemplate = ListTemplatesOutput[0]
 export type UpdateTemplateInput = RouterInput['template']['update']
+export type ImportInput = RouterInput['template']['copy']
 
 export type CreateEntryInput = RouterInput['entry']['create']
 export type ListEntriesOutput = RouterOutput['entry']['getForLedger']

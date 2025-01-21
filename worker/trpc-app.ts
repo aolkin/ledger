@@ -77,6 +77,12 @@ const PartialLedgerTemplateSchema = LedgerTemplateSchema.partial().and(
 const PartialLedgerEntrySchema = LedgerEntrySchema.partial().and(
   LedgerObjectIdsSchema,
 )
+const LedgerCopySchema = LedgerIdSchema.and(
+  z.object({
+    source: ObjectIdSchema,
+    ids: z.optional(z.array(ObjectIdSchema)),
+  }),
+)
 
 const forbidden = () => new TRPCError({ code: 'FORBIDDEN' })
 
@@ -92,19 +98,27 @@ const procedure = t.procedure.use(async ({ ctx, input, next }) => {
   })
 })
 
+async function getLedgerAccess(
+  ctx: Context & { userId: string },
+  ledgerId: string,
+): Promise<AccessLevel> {
+  const access = await ctx.prisma.ledgerAccess.findUnique({
+    where: {
+      ledgerId_userId: { ledgerId: ledgerId, userId: ctx.userId },
+    },
+  })
+  if (!access) {
+    throw forbidden()
+  }
+  console.log(ctx.userId, ledgerId, access.level)
+  return access.level as AccessLevel
+}
+
 const ledgerProc = procedure
   .input(LedgerIdSchema)
   .use(async ({ ctx, input, next }) => {
-    const access = await ctx.prisma.ledgerAccess.findUnique({
-      where: {
-        ledgerId_userId: { ledgerId: input.ledgerId, userId: ctx.userId },
-      },
-    })
-    if (!access) {
-      throw forbidden()
-    }
-    console.log(ctx.userId, input.ledgerId, access.level)
-    return next({ ctx: { access: access.level as AccessLevel } })
+    const access = await getLedgerAccess(ctx, input.ledgerId)
+    return next({ ctx: { access } })
   })
 
 const adminProc = ledgerProc.use(({ ctx, next }) => {
@@ -303,6 +317,24 @@ export const appRouter = t.router({
         async ({ input, ctx }) =>
           await ctx.prisma.ledgerTemplate.delete({ where: input }),
       ),
+
+    copy: writeProc.input(LedgerCopySchema).mutation(async ({ input, ctx }) => {
+      const { source, ids } = input
+      await getLedgerAccess(ctx, source)
+      const records = await ctx.prisma.ledgerTemplate.findMany({
+        where: {
+          ledgerId: source,
+          ...(ids ? { id: { in: ids } } : {}),
+        },
+      })
+      await ctx.prisma.ledgerTemplate.createMany({
+        data: records.map((record) => ({
+          ...record,
+          id: createId(),
+          ledgerId: input.ledgerId,
+        })),
+      })
+    }),
   }),
   entry: t.router({
     // LedgerEntry procedures
@@ -313,7 +345,7 @@ export const appRouter = t.router({
           data: {
             ...input,
             id: createId(),
-            author: 'default',
+            author: ctx.session.user.name,
             updates: {
               create: [
                 {
